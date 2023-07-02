@@ -21,6 +21,8 @@ This have only been tested with Zengge LEDnetWF devices, may also be known as:
  - External remotes or commands do not reflect their changes on Home Assistant
 
 ## Instalation
+### Requeriments
+You need to have the bluetooth component configured and working in Home Assistant in order to use this integration.
 ### Manual installation
 
 Clone this repository into `config/custom_components/lednetwf_ble` Home Assistant folder.
