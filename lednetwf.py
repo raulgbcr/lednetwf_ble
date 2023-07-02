@@ -225,7 +225,7 @@ class LEDNETWFInstance:
         """Ensure connection to device is established."""
         if self._connect_lock.locked():
             LOGGER.debug(
-                "%s: Connection already in progress, waiting for it to complete: %s",
+                "%s: Connection already in progress, waiting for it to complete",
                 self.name
             )
         if self._client and self._client.is_connected:
@@ -236,7 +236,7 @@ class LEDNETWFInstance:
             if self._client and self._client.is_connected:
                 self._reset_disconnect_timer()
                 return
-            LOGGER.debug("%s: Connecting: %s", self.name)
+            LOGGER.debug("%s: Connecting", self.name)
             client = await establish_connection(
                 BleakClientWithServiceCache,
                 self._device,
@@ -245,7 +245,7 @@ class LEDNETWFInstance:
                 cached_services=self._cached_services,
                 ble_device_callback=lambda: self._device,
             )
-            LOGGER.debug("%s: Connected: %s", self.name)
+            LOGGER.debug("%s: Connected", self.name)
             resolved = self._resolve_characteristics(client.services)
             if not resolved:
                 # Try to handle services failing to load
@@ -256,12 +256,12 @@ class LEDNETWFInstance:
             self._reset_disconnect_timer()
 
             #Subscribe to notification is needed for LEDnetWF devices to accept commands
-            LOGGER.debug("%s: Subscribe to notifications: %s", self.name)
+            LOGGER.debug("%s: Subscribe to notifications", self.name)
             await client.start_notify(self._read_uuid, self._notification_handler)
 
     def _notification_handler(self, _sender: int, data: bytearray) -> None:
         """Handle notification responses."""
-        LOGGER.debug("%s: Notification received: %s", self.name, data.hex())
+        LOGGER.debug("%s: Notification received", self.name, data.hex())
         return
 
     def _resolve_characteristics(self, services: BleakGATTServiceCollection) -> bool:
@@ -282,7 +282,7 @@ class LEDNETWFInstance:
             self._disconnect_timer.cancel()
         self._expected_disconnect = False
         if self._delay is not None and self._delay != 0:
-            LOGGER.debug("%s: Configured disconnect from device in %s seconds: %s", self.name, self._delay)
+            LOGGER.debug("%s: Configured disconnect from device in %s seconds", self.name, self._delay)
             self._disconnect_timer = self.loop.call_later(
                 self._delay, self._disconnect
             )
@@ -290,9 +290,9 @@ class LEDNETWFInstance:
     def _disconnected(self, client: BleakClientWithServiceCache) -> None:
         """Disconnected callback."""
         if self._expected_disconnect:
-            LOGGER.debug("%s: Disconnected from device: %s", self.name)
+            LOGGER.debug("%s: Disconnected from device", self.name)
             return
-        LOGGER.warning("%s: Device unexpectedly disconnected: %s",self.name)
+        LOGGER.warning("%s: Device unexpectedly disconnected",self.name)
 
     def _disconnect(self) -> None:
         """Disconnect from device."""
