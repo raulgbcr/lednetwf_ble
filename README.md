@@ -1,6 +1,6 @@
 # LEDnetWF_ble
 
-Home Assistant custom integration for LEDnetWF devices wich are not sopported on the official LEDBLE integration. WIP
+Home Assistant custom integration for LEDnetWF devices wich are not supported on the official LEDBLE integration. WIP
 
 ## Suported devices
 
