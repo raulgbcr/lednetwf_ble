@@ -122,8 +122,7 @@ class LEDNETWFLight(LightEntity):
                 (DOMAIN, self._instance.mac)
             },
             name=self.name,
-            connections={(device_registry.CONNECTION_NETWORK_MAC, self._instance.mac)},
-            config_entry_id=self._entry_id,
+            connections={(device_registry.CONNECTION_NETWORK_MAC, self._instance.mac)}
         )
 
     @property
