@@ -170,6 +170,8 @@ class LEDNETWFInstance:
             value = self._max_color_temp_kelvin
         color_temp_percent = int(((value - self._min_color_temp_kelvin) * 100) / (self._max_color_temp_kelvin - self._min_color_temp_kelvin))
         if brightness is None:
+            if self._brightness is None:
+                self._brightness = 255
             brightness = self._brightness
         brightness_percent = int(brightness * 100 / 255) 
         # Color temp packet + brightness
@@ -185,6 +187,8 @@ class LEDNETWFInstance:
         hue = int(hs[0] / 2)
         saturation = int(hs[1])
         if brightness is None:
+            if self._brightness is None:
+                self._brightness = 255
             brightness = self._brightness
         brightness_percent = int(brightness * 100 / 255)
         # HSV packet
