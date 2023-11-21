@@ -139,11 +139,11 @@ class LEDNETWFLight(LightEntity):
             await self._instance.set_brightness_local(kwargs[ATTR_BRIGHTNESS])
             # Call rgb or temp color functions in order to update the brightness (same packet)
             if self._color_mode is ColorMode.COLOR_TEMP and ATTR_COLOR_TEMP_KELVIN not in kwargs:
-                await self._instance.set_color_temp_kelvin(self._instance.color_temp_kelvin, kwargs[ATTR_BRIGHTNESS])
+                await self._instance.set_color_temp_kelvin(self._instance.color_temp_kelvin, self._brightness)
             if self._color_mode is ColorMode.HS and ATTR_HS_COLOR not in kwargs:
-                await self._instance.set_hs_color(self._instance.hs_color, kwargs[ATTR_BRIGHTNESS])
+                await self._instance.set_hs_color(self._instance.hs_color, self._brightness)
             if self._effect is not None and ATTR_EFFECT not in kwargs:
-                await self._instance.set_effect(self._effect, kwargs[ATTR_BRIGHTNESS])
+                await self._instance.set_effect(self._effect, self._brightness)
         
         if ATTR_COLOR_TEMP_KELVIN in kwargs:
             self._color_mode = ColorMode.COLOR_TEMP
