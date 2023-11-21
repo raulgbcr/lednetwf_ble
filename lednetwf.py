@@ -20,6 +20,9 @@ import traceback
 import asyncio
 import logging
 
+# Add effects information in a separate file because there is a LOT of boilerplate.
+import effects
+
 LOGGER = logging.getLogger(__name__)
 
 NAME_ARRAY = ["LEDnetWF"]
@@ -28,6 +31,7 @@ NOTIFY_CHARACTERISTIC_UUIDS  = ["0000ff02-0000-1000-8000-00805f9b34fb"]
 SERVICE_CHARACTERISTICS_UUIDS = ["0000ffff-0000-1000-8000-00805f9b34fb"]
 TURN_ON_CMD = [bytearray.fromhex("00 04 80 00 00 0d 0e 0b 3b 23 00 00 00 00 00 00 00 32 00 00 90")]
 TURN_OFF_CMD = [bytearray.fromhex("00 5b 80 00 00 0d 0e 0b 3b 24 00 00 00 00 00 00 00 32 00 00 91")]
+EFFECT_CMD = bytearray.fromhex("00 06 80 00 00 04 05 0b 38 01 32 64")
 MIN_COLOR_TEMPS_K = [2700]
 MAX_COLOR_TEMPS_K = [6500]
 
@@ -156,6 +160,9 @@ class LEDNETWFInstance:
         return self._hs_color
 
     @property
+    def effect_list(self):
+        return effects.EFFECT_LIST
+    @property
     def effect(self):
         return self._effect
     
@@ -192,6 +199,7 @@ class LEDNETWFInstance:
             brightness = self._brightness
         brightness_percent = int(brightness * 100 / 255)
         # HSV packet
+        self._effect = None
         await self._write(bytearray.fromhex("00 05 80 00 00 0d 0e 0b 3b a1 " + str(hex(hue)[2:]).rjust(2, '0') + " " + str(hex(saturation)[2:]).rjust(2, '0') + " " + str(hex(brightness_percent)[2:]).rjust(2, '0') + " 00 00 00 00 00 00 00 3d"))
         
     async def set_brightness_local(self, value: int):
@@ -208,6 +216,22 @@ class LEDNETWFInstance:
     async def turn_off(self):
         await self._write(self._turn_off_cmd)
         self._is_on = False
+
+    @retry_bluetooth_connection_error
+    async def set_effect(self, effect: str, brightness: int):
+        if brightness is None:
+            if self._brightness is None:  self._brightness = 255
+            brightness = self._brightness
+        if effect not in effects.EFFECT_LIST:
+            LOGGER.error("Effect %s not supported", effect)
+            return
+        self._effect = effect
+        effect_id = effects.EFFECT_MAP.get(effect)
+        effect_packet = EFFECT_CMD
+        effect_packet[9] = effect_id
+        #effect_packet[10] = self._effect_speed # TODO: Support variable speeds.  For now, hard coded to 50% in the packet declaration
+        effect_packet[11] = self._brightness
+        await self._write(effect_packet)
 
     @retry_bluetooth_connection_error
     async def update(self):
