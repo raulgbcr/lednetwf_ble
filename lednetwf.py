@@ -206,8 +206,12 @@ class LEDNETWFInstance:
         await self._write(bytearray.fromhex("00 05 80 00 00 0d 0e 0b 3b a1 " + str(hex(hue)[2:]).rjust(2, '0') + " " + str(hex(saturation)[2:]).rjust(2, '0') + " " + str(hex(brightness_percent)[2:]).rjust(2, '0') + " 00 00 00 00 00 00 00 3d"))
         
     async def set_brightness_local(self, value: int):
-        # 0 - 255, should convert automatically with the hex calls
-        # call color temp or rgb functions to update
+        if value is None:
+            return
+        if value < 0:
+            value = 0
+        if value > 255:
+            value = 255
         self._brightness = value
 
     @retry_bluetooth_connection_error
@@ -222,9 +226,6 @@ class LEDNETWFInstance:
 
     @retry_bluetooth_connection_error
     async def set_effect(self, effect: str, brightness: int):
-        if brightness is None:
-            if self._brightness is None:  self._brightness = 255
-            brightness = self._brightness
         if effect not in EFFECT_LIST:
             LOGGER.error("Effect %s not supported", effect)
             return
@@ -233,6 +234,9 @@ class LEDNETWFInstance:
         effect_packet = EFFECT_CMD
         effect_packet[9] = effect_id
         #effect_packet[10] = self._effect_speed # TODO: Support variable speeds.  For now, hard coded to 50% in the packet declaration
+        if self._brightness is None:
+            # If no brightness has been set, set it to 100%
+            self._brightness = 255
         effect_packet[11] = self._brightness
         await self._write(effect_packet)
 

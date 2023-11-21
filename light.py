@@ -132,7 +132,6 @@ class LEDNETWFLight(LightEntity):
     async def async_turn_on(self, **kwargs: Any) -> None:
         if not self.is_on:
             await self._instance.turn_on()
-        self.async_write_ha_state() # TODO move to end of function?
         
         if ATTR_BRIGHTNESS in kwargs and kwargs[ATTR_BRIGHTNESS] != self.brightness:
             self._brightness = kwargs[ATTR_BRIGHTNESS]
@@ -142,7 +141,7 @@ class LEDNETWFLight(LightEntity):
                 await self._instance.set_color_temp_kelvin(self._instance.color_temp_kelvin, kwargs[ATTR_BRIGHTNESS])
             if self._color_mode is ColorMode.HS and ATTR_HS_COLOR not in kwargs:
                 await self._instance.set_hs_color(self._instance.hs_color, kwargs[ATTR_BRIGHTNESS])
-            if self._effect is not None:
+            if self._effect is not None and ATTR_EFFECT not in kwargs:
                 await self._instance.set_effect(self._effect, kwargs[ATTR_BRIGHTNESS])
         
         if ATTR_COLOR_TEMP_KELVIN in kwargs:
@@ -161,7 +160,8 @@ class LEDNETWFLight(LightEntity):
             if kwargs[ATTR_EFFECT] != self.effect:
                 self._effect = kwargs[ATTR_EFFECT]
                 await self._instance.set_effect(kwargs[ATTR_EFFECT], None)
-        
+
+        self.async_write_ha_state()
         
     async def async_turn_off(self, **kwargs: Any) -> None:
         # Fix for turn of circle effect of HSV MODE(controller skips turn off animation if state is not changed since last turn on)
