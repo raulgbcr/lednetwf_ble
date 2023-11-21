@@ -1,7 +1,8 @@
 # Perhaps these should be in const.py instead?
 
-# The names given to the effects are just what I thought they looked like.  Updates are welcome.
+EFFECT_CMD = bytearray.fromhex("00 06 80 00 00 04 05 0b 38 01 32 64")
 
+# The names given to the effects are just what I thought they looked like.  Updates are welcome.
 EFFECT_GOLDRING                    = "goldring"
 EFFECT_REDSFADE                    = "redsfade"
 EFFECT_ORANGESFADE                 = "orangesfade"
