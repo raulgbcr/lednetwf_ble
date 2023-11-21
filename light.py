@@ -57,7 +57,6 @@ class LEDNETWFLight(LightEntity):
     def brightness(self):
         if self._instance.brightness:
             return self._instance.brightness
-        
         return 255
 
     @property
@@ -140,27 +139,25 @@ class LEDNETWFLight(LightEntity):
             # Call rgb or temp color functions in order to update the brightness (same packet)
             if self._color_mode is ColorMode.COLOR_TEMP and ATTR_COLOR_TEMP_KELVIN not in kwargs:
                 await self._instance.set_color_temp_kelvin(self._instance.color_temp_kelvin, self._brightness)
-            if self._color_mode is ColorMode.HS and ATTR_HS_COLOR not in kwargs:
+            elif self._color_mode is ColorMode.HS and ATTR_HS_COLOR not in kwargs:
                 await self._instance.set_hs_color(self._instance.hs_color, self._brightness)
-            if self._effect is not None and ATTR_EFFECT not in kwargs:
+            elif self._effect is not None and ATTR_EFFECT not in kwargs:
                 await self._instance.set_effect(self._effect, self._brightness)
         
         if ATTR_COLOR_TEMP_KELVIN in kwargs:
             self._color_mode = ColorMode.COLOR_TEMP
             if kwargs[ATTR_COLOR_TEMP_KELVIN] != self.color_temp:
                 self._effect = None
-                await self._instance.set_color_temp_kelvin(kwargs[ATTR_COLOR_TEMP_KELVIN], None)
-        
-        if ATTR_HS_COLOR in kwargs:
+                await self._instance.set_color_temp_kelvin(kwargs[ATTR_COLOR_TEMP_KELVIN], self.brightness)
+        elif ATTR_HS_COLOR in kwargs:
             self._color_mode = ColorMode.HS
             if kwargs[ATTR_HS_COLOR] != self.color_temp:
                 self._effect = None
-                await self._instance.set_hs_color(kwargs[ATTR_HS_COLOR], None)
-        
-        if ATTR_EFFECT in kwargs:
+                await self._instance.set_hs_color(kwargs[ATTR_HS_COLOR], self.brightness)
+        elif ATTR_EFFECT in kwargs:
             if kwargs[ATTR_EFFECT] != self.effect:
                 self._effect = kwargs[ATTR_EFFECT]
-                await self._instance.set_effect(kwargs[ATTR_EFFECT], None)
+                await self._instance.set_effect(kwargs[ATTR_EFFECT], self.brightness)
 
         self.async_write_ha_state()
         
