@@ -237,7 +237,7 @@ class LEDNETWFInstance:
         if self._brightness is None:
             # If no brightness has been set, set it to 100%
             self._brightness = 255
-        effect_packet[11] = self._brightness
+        effect_packet[11] = int(self._brightness * 100 / 255)
         await self._write(effect_packet)
 
     @retry_bluetooth_connection_error
