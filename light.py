@@ -86,7 +86,7 @@ class LEDNETWFLight(LightEntity):
 
     @property
     def effect_list(self):
-        return None
+        return self._instance.effect_list
 
     @property
     def effect(self):

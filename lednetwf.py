@@ -21,7 +21,7 @@ import asyncio
 import logging
 
 # Add effects information in a separate file because there is a LOT of boilerplate.
-import effects
+from .effects import *
 
 LOGGER = logging.getLogger(__name__)
 
