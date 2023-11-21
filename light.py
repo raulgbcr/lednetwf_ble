@@ -130,6 +130,7 @@ class LEDNETWFLight(LightEntity):
         return False
 
     async def async_turn_on(self, **kwargs: Any) -> None:
+        LOGGER.debug("kwargs: %s", kwargs)
         if not self.is_on:
             await self._instance.turn_on()
         
