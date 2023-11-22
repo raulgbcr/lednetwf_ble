@@ -32,6 +32,7 @@ LOGGER = logging.getLogger(__name__)
 NAME_ARRAY = ["LEDnetWF"]
 WRITE_CHARACTERISTIC_UUIDS    = ["0000ff01-0000-1000-8000-00805f9b34fb"]
 NOTIFY_CHARACTERISTIC_UUIDS   = ["0000ff02-0000-1000-8000-00805f9b34fb"]
+NOT2 = "ff02"
 SERVICE_CHARACTERISTICS_UUIDS = ["0000ffff-0000-1000-8000-00805f9b34fb"]
 TURN_ON_CMD = [
     bytearray.fromhex("00 04 80 00 00 0d 0e 0b 3b 23 00 00 00 00 00 00 00 32 00 00 90")
@@ -41,7 +42,6 @@ TURN_OFF_CMD = [
 ]
 
 INITIAL_PACKET         = bytearray.fromhex("00 01 80 00 00 04 05 0a 81 8a 8b 96")
-INITIAL_PACKET_2       = bytearray.fromhex("00 02 80 00 00 0c 0d 0b 10 14 16 0b 05 0d 36 36 06 00 0f d8")
 
 MIN_COLOR_TEMPS_K = [2700]
 MAX_COLOR_TEMPS_K = [6500]
@@ -134,6 +134,7 @@ class LEDNETWFInstance:
         self._disconnect_timer: asyncio.TimerHandle | None = None
         self._cached_services: BleakGATTServiceCollection | None = None
         self._expected_disconnect = False
+        self._packet_counter = 0
         self._is_on = None
         self._hs_color = None
         self._brightness = None
@@ -169,6 +170,9 @@ class LEDNETWFInstance:
     async def _write(self, data: bytearray):
         """Send command to device and read response."""
         await self._ensure_connected()
+        data[0] = 0xFF00 & self._packet_counter
+        data[1] = 0x00FF & self._packet_counter
+        self._packet_counter = self._packet_counter + 1
         await self._write_while_connected(data)
 
     async def _write_while_connected(self, data: bytearray):
@@ -368,12 +372,11 @@ class LEDNETWFInstance:
             # Subscribe to notification is needed for LEDnetWF devices to accept commands
             LOGGER.debug("%s: Subscribe to notifications", self.name)
             await client.start_notify(self._read_uuid, self._notification_handler)
-
+            
             # Send initial packets to device to see if it sends notifications
             LOGGER.debug("%s: Send initial packets", self.name)
             await self._write_while_connected(INITIAL_PACKET)
-            await self._write_while_connected(INITIAL_PACKET_2)
-            
+
 
     def _notification_handler(self, _sender: int, data: bytearray) -> None:
         """Handle notification responses."""
@@ -442,5 +445,5 @@ class LEDNETWFInstance:
             self._write_uuid = None
             self._read_uuid = None
             if client and client.is_connected:
-                await client.stop_notify(read_char)
+                await client.stop_notify(read_char) #  TODO:  I don't think this is needed.  Bleak docs say it isnt.
                 await client.disconnect()
