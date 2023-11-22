@@ -170,6 +170,8 @@ class LEDNETWFInstance:
     async def _write(self, data: bytearray):
         """Send command to device and read response."""
         await self._ensure_connected()
+        if self._packet_counter > 65535:
+            self._packet_counter = 0
         data[0] = 0xFF00 & self._packet_counter
         data[1] = 0x00FF & self._packet_counter
         self._packet_counter = self._packet_counter + 1
@@ -378,7 +380,7 @@ class LEDNETWFInstance:
             await self._write_while_connected(INITIAL_PACKET)
 
 
-    def _notification_handler(self, _sender: int, data: bytearray) -> None:
+    def _notification_handler(self, _sender: BleakGATTCharacteristic, data: bytearray) -> None:
         """Handle notification responses."""
         LOGGER.debug("%s: Notification received", self.name, data.hex())
         return
