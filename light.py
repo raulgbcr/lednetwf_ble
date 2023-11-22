@@ -20,26 +20,30 @@ from homeassistant.components.light import (
     LightEntity,
     LightEntityFeature,
 )
-from homeassistant.util.color import (match_max_scale)
+from homeassistant.util.color import match_max_scale
 from homeassistant.helpers import device_registry
 
 PARALLEL_UPDATES = 0
 
 LOGGER = logging.getLogger(__name__)
-PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend({
-    vol.Required(CONF_MAC): cv.string
-})
+PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend({vol.Required(CONF_MAC): cv.string})
+
 
 async def async_setup_entry(hass, config_entry, async_add_devices):
     instance = hass.data[DOMAIN][config_entry.entry_id]
     await instance.update()
-    async_add_devices([LEDNETWFLight(instance, config_entry.data["name"], config_entry.entry_id)])
+    async_add_devices(
+        [LEDNETWFLight(instance, config_entry.data["name"], config_entry.entry_id)]
+    )
     # config_entry.async_on_unload(
     #     await instance.stop()
     # )
 
+
 class LEDNETWFLight(LightEntity):
-    def __init__(self, lednetwfinstance: LEDNETWFInstance, name: str, entry_id: str) -> None:
+    def __init__(
+        self, lednetwfinstance: LEDNETWFInstance, name: str, entry_id: str
+    ) -> None:
         self._instance = lednetwfinstance
         self._entry_id = entry_id
         self._attr_supported_color_modes = {ColorMode.COLOR_TEMP, ColorMode.HS}
@@ -57,7 +61,6 @@ class LEDNETWFLight(LightEntity):
     def brightness(self):
         if self._instance.brightness:
             return self._instance.brightness
-        
         return 255
 
     @property
@@ -75,7 +78,7 @@ class LEDNETWFLight(LightEntity):
     @property
     def color_temp_kelvin(self):
         return self._instance.color_temp_kelvin
-    
+
     @property
     def max_color_temp_kelvin(self):
         return self._instance.max_color_temp_kelvin
@@ -86,7 +89,7 @@ class LEDNETWFLight(LightEntity):
 
     @property
     def effect_list(self):
-        return None
+        return self._instance.effect_list
 
     @property
     def effect(self):
@@ -112,7 +115,7 @@ class LEDNETWFLight(LightEntity):
     def color_mode(self):
         """Return the color mode of the light."""
         return self._color_mode
-        
+
     @property
     def device_info(self):
         """Return device info."""
@@ -122,7 +125,7 @@ class LEDNETWFLight(LightEntity):
                 (DOMAIN, self._instance.mac)
             },
             name=self.name,
-            connections={(device_registry.CONNECTION_NETWORK_MAC, self._instance.mac)}
+            connections={(device_registry.CONNECTION_NETWORK_MAC, self._instance.mac)},
         )
 
     @property
@@ -130,31 +133,56 @@ class LEDNETWFLight(LightEntity):
         return False
 
     async def async_turn_on(self, **kwargs: Any) -> None:
+        LOGGER.debug("kwargs: %s", kwargs)
+        LOGGER.debug("self._color_mode: %s", self._color_mode)
+        LOGGER.debug("self._effect: %s", self._effect)
         if not self.is_on:
             await self._instance.turn_on()
-        self.async_write_ha_state()
-        
+
         if ATTR_BRIGHTNESS in kwargs and kwargs[ATTR_BRIGHTNESS] != self.brightness:
             self._brightness = kwargs[ATTR_BRIGHTNESS]
             await self._instance.set_brightness_local(kwargs[ATTR_BRIGHTNESS])
             # Call rgb or temp color functions in order to update the brightness (same packet)
-            if self._color_mode is ColorMode.COLOR_TEMP and ATTR_COLOR_TEMP_KELVIN not in kwargs:
-                await self._instance.set_color_temp_kelvin(self._instance.color_temp_kelvin, kwargs[ATTR_BRIGHTNESS])
-            if self._color_mode is ColorMode.HS and ATTR_HS_COLOR not in kwargs:
-                await self._instance.set_hs_color(self._instance.hs_color, kwargs[ATTR_BRIGHTNESS])
-        
+            if (
+                self._color_mode is ColorMode.COLOR_TEMP
+                and ATTR_COLOR_TEMP_KELVIN not in kwargs
+            ):
+                await self._instance.set_color_temp_kelvin(
+                    self._instance.color_temp_kelvin, self._brightness
+                )
+            elif (
+                self._color_mode is ColorMode.HS
+                and ATTR_HS_COLOR not in kwargs
+                and self._effect is None
+            ):
+                await self._instance.set_hs_color(
+                    self._instance.hs_color, self._brightness
+                )
+            elif self._effect is not None and ATTR_EFFECT not in kwargs:
+                await self._instance.set_effect(self._effect, self._brightness)
+
         if ATTR_COLOR_TEMP_KELVIN in kwargs:
             self._color_mode = ColorMode.COLOR_TEMP
             if kwargs[ATTR_COLOR_TEMP_KELVIN] != self.color_temp:
                 self._effect = None
-                await self._instance.set_color_temp_kelvin(kwargs[ATTR_COLOR_TEMP_KELVIN], None)
-        
-        if ATTR_HS_COLOR in kwargs:
+                await self._instance.set_color_temp_kelvin(
+                    kwargs[ATTR_COLOR_TEMP_KELVIN], self.brightness
+                )
+        elif ATTR_HS_COLOR in kwargs:
             self._color_mode = ColorMode.HS
             if kwargs[ATTR_HS_COLOR] != self.color_temp:
                 self._effect = None
-                await self._instance.set_hs_color(kwargs[ATTR_HS_COLOR], None)
-        
+                await self._instance.set_hs_color(
+                    kwargs[ATTR_HS_COLOR], self.brightness
+                )
+        elif ATTR_EFFECT in kwargs:
+            self._color_mode = None
+            if kwargs[ATTR_EFFECT] != self.effect:
+                self._effect = kwargs[ATTR_EFFECT]
+                await self._instance.set_effect(kwargs[ATTR_EFFECT], self.brightness)
+
+        self.async_write_ha_state()
+
     async def async_turn_off(self, **kwargs: Any) -> None:
         # Fix for turn of circle effect of HSV MODE(controller skips turn off animation if state is not changed since last turn on)
         if self._instance.brightness == 100:
@@ -163,11 +191,16 @@ class LEDNETWFLight(LightEntity):
             temp_brightness = self._instance.brightness + 1
         if self._color_mode is ColorMode.HS and ATTR_HS_COLOR not in kwargs:
             await self._instance.set_hs_color(self._instance.hs_color, temp_brightness)
-        
+
         # Actual turn off
         await self._instance.turn_off()
         self.async_write_ha_state()
 
     async def async_update(self) -> None:
         await self._instance.update()
+        self.async_write_ha_state()
+
+    async def async_set_effect(self, effect: str) -> None:
+        self._effect = effect
+        await self._instance.set_effect(effect, None)
         self.async_write_ha_state()
