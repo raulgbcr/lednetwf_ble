@@ -16,6 +16,7 @@ This have only been tested with Zengge LEDnetWF devices, may also be known as:
  - Color temp mode
  - RGB mode (With included turn off circle effect)
  - Brightness
+ - Effects (thanks https://github.com/8none1 !!)
 ## Not suported
  - Current status decoding (not implemented atm)
  - External remotes or commands do not reflect their changes on Home Assistant
