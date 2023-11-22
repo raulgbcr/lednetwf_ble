@@ -3,234 +3,233 @@
 EFFECT_CMD = bytearray.fromhex("00 06 80 00 00 04 05 0b 38 01 32 64")
 
 # The names given to the effects are just what I thought they looked like.  Updates are welcome.
-EFFECT_GOLDRING                    = "goldring"
-EFFECT_REDSFADE                    = "redsfade"
-EFFECT_ORANGESFADE                 = "orangesfade"
-EFFECT_YELLOWSFADE                 = "yellowsfade"
-EFFECT_GREENSPIN                   = "greenspin"
-EFFECT_BLUESPIN                    = "bluespin"
-EFFECT_PURPLESPIN                  = "purplespin"
-EFFECT_COLORLOOP                   = "colorloop"
-EFFECT_REDBLUEFLASH                = "redblueflash"
-EFFECT_COLORSPIN                   = "colorspin"
-EFFECT_COLORSPIRAL                 = "colorspiral"
-EFFECT_RAINBOWSPIN                 = "rainbowspin"
-EFFECT_REDGREENSPIN                = "redgreenspin"
-EFFECT_RGBSPIN                     = "rgbspin"
-EFFECT_REDFADE                     = "redfade"
-EFFECT_BLUEYELLOWSTATIC            = "blueyellowstatic"
-EFFECT_REDGREENSTATIC              = "redgreenstatic"
-EFFECT_CYANMAGENTASTATIC           = "cyanmagentastatic"
-EFFECT_REDGREENSPIN2               = "redgreenspin2"
-EFFECT_BLUEYELLOWSPIN              = "blueyellowspin"
-EFFECT_CYANMAGENTASPIN             = "cyanmagentaspin"
-EFFECT_RGBYELLOWSPIN               = "rgbyellowspin"
-EFFECT_RGBCYANSPIN                 = "rgbcyanspin"
-EFFECT_RGBMAGENTASPIN              = "rgbmagentaspin"
-EFFECT_RGBSPIN2                    = "rgbspin2"
-EFFECT_RGBYSPIN                    = "rgbyspin"
-EFFECT_RGBYMSPIN                   = "rgbymspin"
-EFFECT_RGBYMCSPIN                  = "rgbymcspin"
-EFFECT_RGBYCMWHITESPIN             = "rgbycmwhitespin"
-EFFECT_REDGREENSPIN3               = "redgreenspin3"
-EFFECT_BLUEYELLOWSPIN2             = "blueyellowspin2"
-EFFECT_CYANMAGENTASPIN2            = "cyanmagentaspin2"
-EFFECT_WHITEFLASH                  = "whiteflash"
-EFFECT_WARMWHITEFLASH              = "warmwhiteflash"
-EFFECT_COLORFADE                   = "colorfade"
-EFFECT_WHITEFADE                   = "whitefade"
-EFFECT_MAGENTAFADE                 = "magentafade"
-EFFECT_CYANFADE                    = "cyanfade"
-EFFECT_CYANMAGENTAFADE             = "cyanmagentafade"
-EFFECT_YELLOWFADE                  = "yellowfade"
-EFFECT_COLORLOOPFADE               = "colorloopfade"
-EFFECT_WHITEWARMWHITEFADE          = "whitewarmwhitefade"
-EFFECT_PURPLEFADE                  = "purplefade"
-EFFECT_CYANMAGENTALOOP             = "cyanmagentaloop"
-EFFECT_CYANBLUELOOP                = "cyanblueloop"
-EFFECT_CYANYELLOWFADE              = "cyanyellowfade"
-EFFECT_REDYELLOWFADE               = "redyellowfade"
-EFFECT_COLORSTROBE                 = "colorstrobe"
-EFFECT_WHITESTROBE                 = "whitestrobe"
-EFFECT_MAGENTASTROBE               = "magentastrobe"
-EFFECT_CYANSTROBE                  = "cyanstrobe"
-EFFECT_YELLOWSTROBE                = "yellowstrobe"
-EFFECT_CYANMAGENTASTROBE           = "cyanmagentastrobe"
-EFFECT_CYANYELLOWSTROBE            = "cyanyellowstrobe"
-EFFECT_WHITESTROBERANDOM           = "whitestroberandom"
-EFFECT_WARMWHITESTROBERANDOM       = "warmwhitestroberandom"
-EFFECT_GREENSTROBERANDOM           = "greenstroberandom"
-EFFECT_MAGENTASTROBERANDOM         = "magentastroberandom"
-EFFECT_CYANSTROBERANDOM            = "cyanstroberandom"
-EFFECT_GOLDGREENRING               = "goldgreenring"
-EFFECT_CYANRING                    = "cyanring"
-EFFECT_COLORLOOPFOLLOW             = "colorloopfollow"
-EFFECT_CYANMAGENTALOOPFOLLOW       = "cyanmagentaloopfollow"
-EFFECT_GREENYELLOWLOOPFOLLOW       = "greenyellowloopfollow"
-EFFECT_PINKBLUELOOPFOLLOW          = "pinkblueloopfollow"
-EFFECT_PINKBLUEGREENLOOPFOLLOW     = "pinkbluegreenloopfollow"
-EFFECT_CYANMAGENTAYELLOWLOOPFOLLOW = "cyanmagentayellowloopfollow"
-EFFECT_REDMAGENTASPINNER           = "redmagentaspinner"
-EFFECT_PINKBLUESPINNER             = "pinkbluespinner"
-EFFECT_GREENYELLOWSPINNER          = "greenyellowspinner"
-EFFECT_BLUEYELLOWSPINNER           = "blueyellowspinner"
-EFFECT_REDYELLOWSPINNER            = "redyellowspinner"
-EFFECT_MAGENTAGREENSPINNER         = "magentagreenspinner"
-EFFECT_REDBLUESPINNER              = "redbluespinner"
-EFFECT_GREENYELLOWSPINNER2         = "greenyellowspinner2"
-EFFECT_RGBSPINNER                  = "rgbspinner"
-EFFECT_REDMAGENTASPINNER2          = "redmagentaspinner2"
-EFFECT_PURPLECYANSPINNER           = "purplecyanspinner"
-EFFECT_RBCMSPINNER                 = "rgbcmspinner"
-EFFECT_RGBCMY_SPINNER              = "rgbcmyspinner"
-EFFECT_RGBSPINNER2                 = "rgbspinner2"
-EFFECT_BCMSPINNER                  = "bcmspinner"
-EFFECT_REDBLUESPINNER2             = "redbluespinner2"
-EFFECT_CYANMAGENTASPINNER2         = "cyanmagentaspinner2"
-EFFECT_YELLOWORANGESPINNER         = "yelloworangespinner"
-EFFECT_REDBLUESMALLERSPINNER       = "redbluesmallerspinner"
-EFFECT_GREENYELLOWSMALLERSPINNER   = "greenyellowsmallerspinner"
-EFFECT_REDMAGENTAYELLOWSMALLERSPINNER = "redmagentayellowsmallerspinner"
-EFFECT_BLUECYANMAJENTASMALLERSPINNER = "bluecyanmagentasmallerspinner"
-EFFECT_GREENCYANYELLOWORANGESMALLERSPINNER = "greencyanyelloworangesmallerspinner"
-EFFECT_RAINBOWSPINNER              = "rainbowspinner"
-EFFECT_REDMAGENTABLUESPINNER       = "redmagentabluespinner"
-EFFECT_CYANBLUEMAGENTASPINNER      = "cyanbluemagentaspinner"
-EFFECT_GREENCYANYELLOWSPINNER      = "greencyanyellowspinner"
-EFFECT_REDORANGEYELLOWSPINNER      = "redorangeyellowspinner"
-EFFECT_COLOURSTROBE                = "colourstrobe"
-EFFECT_MAGENTAPURPLESTROBE         = "magentapurplestrobe"
-EFFECT_YELLOWORANGESTROBE          = "yelloworangestrobe"
-EFFECT_CYANYELLOWDEMISTROBE        = "cyanyellowsemistrobe"
-EFFECT_WHITELIGHTENINGSTROBE       = "whitelighteningstrobe"
-EFFECT_MAGENTALIGHTENINGSTROBE     = "magentallighteningstrobe"
-EFFECT_PURPLELIGHTENINGSTROBE      = "purplelighteningstrobe"
-EFFECT_YELLOWLIGHTENINGSTROBE      = "yellowlighteningstrobe"
-EFFECT_BLUEYELLOWLIGHTENINGSTROBE  = "blueyellowlighteningstrobe"
-EFFECT_REDBLUELIGHTENINGSTROBE     = "redbluelighteningstrobe"
-EFFECT_BLUEMAGENTALIGHTENINGSTROBE = "bluemagentalighteningstrobe"
-EFFECT_YELLOWLIGHTENINGFADE        = "yellowlighteningfade"
-EFFECT_MAGENTALIGHTENINGFADE       = "magentallighteningfade"
-EFFECT_CYANLIGHTENINGFADE          = "cyanlighteningfade"
-EFFECT_REDGREENLIGHTENINGFADE      = "redgreenlighteningfade"
-EFFECT_REDGREENBLUELIGHTENINGFADE  = "redgreenbluelighteningfade"
-EFFECT_MAGENTACYANREDLIGHTENINGFADE = "magentacyanredlighteningfade"
+EFFECT_ORANGERING = "Orange Ring"
+EFFECT_REDSMAGENTAFADE = "Reds Magenta Fade"
+EFFECT_ORANGESFADE = "Oranges Fade"
+EFFECT_GREENYELLOWSLOWFADE = "Green Yellow Slow Fade"
+EFFECT_GREENSPIN = "Green Spin"
+EFFECT_BLUESPIN = "Blue Spin"
+EFFECT_PURPLEPINKSPIN = "Purple Pink Spin"
+EFFECT_RGBCMYFLASH = "Color Fade"
+EFFECT_REDBLUEFLASH = "Red Blue Flash"
+EFFECT_CMRGBSPIN = "CMRGB Spin"
+EFFECT_RGBYMCFOLLOW = "RGBYMC Follow"
+EFFECT_CMYRGBSPIN = "CMYRGB Spin"
+EFFECT_RGBCHASE = "RGB Chase"
+EFFECT_RGBTRIREVERSESPIN = "RGB Tri Reverse Spin"
+EFFECT_REDFADE = "Red Fade"
+EFFECT_BLUEYELLOWSTATIC = "Blue Yellow Static"
+EFFECT_REDGREENQUADSTATIC = "Red Green Quad Static"
+EFFECT_CYANMAGENTASTATIC = "Cyan Magenta Static"
+EFFECT_REDGREENREVERSECHASE = "Red Green Reverse Chase"
+EFFECT_BLUEYELLOWDEMISPIN = "Blue Yellow Demi Spin"
+EFFECT_CYANMAGENTASPIN = "Cyan Magenta Spin"
+EFFECT_YELLOWRGBREVERSESPIN = "Yellow RGB Reverse Spin"
+EFFECT_CYANRGBREVERSESPIN = "Cyan RGB Reverse Spin"
+EFFECT_MAGENTARGBREVERSESPIN = "Magenta RGB Reverse Spin"
+EFFECT_RGBTRIREVERSESPIN = "RGB Tri Reverse Spin 2"
+EFFECT_RGBYREVERSESPIN = "RGBY Reverse Spin"
+EFFECT_MAGENTARGBYREVERSESPIN = "Magenta RGBY Reverse Spin"
+EFFECT_CYANRGBYMCREVERSESPIN = "Cyan RGBYMC Reverse Spin"
+EFFECT_WHITERGBYMVREVERSESPIN = "White RGBYMC Reverse Spin"
+EFFECT_REDGREENREVERSECHASE2 = "Red Green Reverse Chase 2"
+EFFECT_CYANPINKSPIN = "Cyan Pink Spin"
+EFFECT_COOLWHITEFLASH = "Cool White Flash"
+EFFECT_COOLWHITESTROBE = "Cool White Strobe"
+EFFECT_RGBCMYFLASH = "White Strobe"
+EFFECT_MAGENTAPURPLEFADE = "Magenta Purple Fade"
+EFFECT_WHITESTATIC = "White Static"
+EFFECT_PINKSFADE = "Pinks Fade"
+EFFECT_CYANSFADE = "Cyans Fade"
+EFFECT_CYANMAGENTASLOWFADE = "Cyan Magenta Slow Fade"
+EFFECT_GREENYELLOWFADE = "Green Yellow Fade"
+EFFECT_RGBCMYSLOWFADE = "RGBCMY Slow Fade"
+EFFECT_WHITESFADE = "Whites Fade"
+EFFECT_PINKPURPLEFADE = "Pink Purple Fade"
+EFFECT_CYANMAGENTAFADE = "Cyan Magenta Fade"
+EFFECT_CYANBLUEFADE = "Cyan Blue Fade"
+EFFECT_YELLOWCYANFADE = "Yellow Cyan Fade"
+EFFECT_REDYELLOWFADE = "Red Yellow Fade"
+EFFECT_RGBCMYFLASH = "RGBCMY Flash"
+EFFECT_WARMCOOLWHITESTROBE = "Warm Cool White Strobe"
+EFFECT_MAGENTASTROBE = "Magenta Strobe"
+EFFECT_CYANSTROBE = "Cyan Strobe"
+EFFECT_YELLOWSTROBE = "Yellow Strobe"
+EFFECT_MAGENTACYANSTROBE = "Magenta Cyan Strobe"
+EFFECT_CYANYELLOWSTROBE = "Cyan Yellow Strobe"
+EFFECT_WARMWHITESTROBERANDOM = "Cool White Strobe Random"
+EFFECT_WARMWHITESTROBERANDOM = "Warm White Strobe Random"
+EFFECT_LIGHTGREENSTROBE = "Light Green Strobe"
+EFFECT_MAGENTASTROBERANDOM = "Magenta Strobe Random"
+EFFECT_CYANSTROBERANDOM = "Cyan Strobe Random"
+EFFECT_ORANGERING = "Oranges Ring"
+EFFECT_BLUERING = "Blue Ring"
+EFFECT_RGBCGYLOOP = "RMBCGY Loop"
+EFFECT_CYANMAGENTAFOLLOW = "Cyan Magenta Follow"
+EFFECT_YELLOWGREENFOLLOW = "Yellow Green Follow"
+EFFECT_PINKBLUEFOLLOW = "Pink Blue Follow"
+EFFECT_BGPPASTELSLOOP = "BGP Pastels Loop"
+EFFECT_CMYFOLLOW = "CYM Follow"
+EFFECT_PINKPURPLEDEMISPINNER = "Pink Purple Demi Spinner"
+EFFECT_BLUEPINKSPINNER = "Blue Pink Spinner"
+EFFECT_GREENSPINNER = "Green Spinner"
+EFFECT_BLUEYELLOWTRISPINNER = "Blue Yellow Tri Spinner"
+EFFECT_REDYELLOWQUADSPINNER = "Red Yellow Quad Spinner"
+EFFECT_PINKGREENSPINNER = "Pink Green Spinner"
+EFFECT_REDBLUEDEMISPINNER = "Red Blue Demi Spinner"
+EFFECT_YELLOWGREENDEMISPINNER = "Yellow Green Demi Spinner"
+EFFECT_RGBTRISPIN = "RGB Tri Spin"
+EFFECT_REDMAGENTADEMISPIN = "Red Magenta Demi Spinner"
+EFFECT_CYANMAGENTADEMISPIN = "Cyan Magenta Demi Spinner"
+EFFECT_RGBMQUADSPINNER = "RCBM Quad Spinner"
+EFFECT_RGBCMYSPINNER = "RGBCMY Spinner"
+EFFECT_RGBSPINNER = "RGB Spinner"
+EFFECT_CMYSPINNER = "CMB Spinner"
+EFFECT_REDBLUESPINNER = "Red Blue Spinner"
+EFFECT_CYANMAGENTADEMISPINNER = "Cyan Magenta Demi Spinner"
+EFFECT_YELLOWORANGEDEMISPINNER = "Yellow Orange Demi Spinner"
+EFFECT_REDBLUESTRIPEDSPINNER = "Red Blue Striped Spinner"
+EFFECT_GREENYELLOWSTRIPEDSPINNER = "Green Yellow Striped Spinner"
+EFFECT_RPYSMALLSPINNER = "Red Pink Yellow Small Spinner"
+EFFECT_CBMSMALLSPINNER = "Cyan Blue Magenta Small Spinner"
+EFFECT_PASTELSSPINNER = "Pastels Small Spinner"
+EFFECT_RAINBOWSPIN = "Rainbow Spin"
+EFFECT_REDPINKBLUESPINNER = "Red Pink Blue Spinner"
+EFFECT_CYANMAGENTASPINNER = "Cyan Magenta Spinner"
+EFFECT_GREENCYANSPINNER = "Green Cyan Spinner"
+EFFECT_YELLOWREDSPINNER = "Yellow Red Spinner"
+EFFECT_RAINBOWSTROBE = "Rainbow Strobe"
+EFFECT_MAGENTASTROBE = "Magenta Strobe"
+EFFECT_YELLOWORANGESEMISTROBE = "Yellow Orange Semi Strobe"
+EFFECT_YELLOWCYANDEMIFLASH = "Yellow Cyan Demi Flash"
+EFFECT_WHITELIGHTENINGSTROBERANDOM = "White Lightening Strobe Random"
+EFFECT_PURPLELIGHTENINGSTROBE = "Purple Lightening Strobe"
+EFFECT_MAGENTALIGHTENINGSTROBE = "Magenta Lightening Strobe"
+EFFECT_YELLOWLIGHTENINGSTROBE = "Yellow Lightening Strobe"
+EFFECT_BLUEWITHSPARKELS = "Blue With Sparkles"
+EFFECT_REDLIGHTENING = "Red Lightening"
+EFFECT_BLUESPARKELS = "Blue Sparkles"
+EFFECT_YELLOWLIGHTENINGFADE = "Yellow Lightening Fade"
+EFFECT_MAGENTALIGHTENINGFADE = "Magenta Lightening Fade"
+EFFECT_CYANDISOLVE = "Cyan Disolve"
+EFFECT_REDGREENBLUEDISOLVE = "Red Green Disolve"
+EFFECT_RGBSPOTFADE = "RGB spot fade"
+EFFECT_WILL = "Will"
 
 EFFECT_MAP = {
-    EFFECT_GOLDRING:                            0x01,
-    EFFECT_REDSFADE:                            0x02,
-    EFFECT_ORANGESFADE:                         0x03,
-    EFFECT_YELLOWSFADE:                         0x04,
-    EFFECT_GREENSPIN:                           0x05,
-    EFFECT_BLUESPIN:                            0x06,
-    EFFECT_PURPLESPIN:                          0x07,
-    EFFECT_COLORLOOP:                           0x08,
-    EFFECT_REDBLUEFLASH:                        0x09,
-    EFFECT_COLORSPIN:                           0x0A,
-    EFFECT_COLORSPIRAL:                         0x0B,
-    EFFECT_RAINBOWSPIN:                         0x0C,
-    EFFECT_REDGREENSPIN:                        0x0D,
-    EFFECT_RGBSPIN:                             0x0E,
-    EFFECT_REDFADE:                             0x0F,
-    EFFECT_BLUEYELLOWSTATIC:                    0x10,
-    EFFECT_REDGREENSTATIC:                      0x11,
-    EFFECT_CYANMAGENTASTATIC:                   0x12,
-    EFFECT_REDGREENSPIN2:                       0x13,
-    EFFECT_BLUEYELLOWSPIN:                      0x14,
-    EFFECT_CYANMAGENTASPIN:                     0x15,
-    EFFECT_RGBYELLOWSPIN:                       0x16,
-    EFFECT_RGBCYANSPIN:                         0x17,
-    EFFECT_RGBMAGENTASPIN:                      0x18,
-    EFFECT_RGBSPIN2:                            0x19,
-    EFFECT_RGBYSPIN:                            0x1A,
-    EFFECT_RGBYMSPIN:                           0x1B,
-    EFFECT_RGBYMCSPIN:                          0x1C,
-    EFFECT_RGBYCMWHITESPIN:                     0x1D,
-    EFFECT_REDGREENSPIN3:                       0x1E,
-    EFFECT_BLUEYELLOWSPIN2:                     0x1F,
-    EFFECT_CYANMAGENTASPIN2:                    0x20,
-    EFFECT_WHITEFLASH:                          0x21,
-    EFFECT_WARMWHITEFLASH:                      0x22,
-    EFFECT_COLORFADE:                           0x23,
-    EFFECT_WHITEFADE:                           0x24,
-    EFFECT_MAGENTAFADE:                         0x25,
-    EFFECT_CYANFADE:                            0x26,
-    EFFECT_CYANMAGENTAFADE:                     0x27,
-    EFFECT_YELLOWFADE:                          0x28,
-    EFFECT_COLORLOOPFADE:                       0x29,
-    EFFECT_WHITEWARMWHITEFADE:                  0x2A,
-    EFFECT_PURPLEFADE:                          0x2B,
-    EFFECT_CYANMAGENTALOOP:                     0x2C,
-    EFFECT_CYANBLUELOOP:                        0x2D,
-    EFFECT_CYANYELLOWFADE:                      0x2E,
-    EFFECT_REDYELLOWFADE:                       0x2F,
-    EFFECT_COLORSTROBE:                         0x30,
-    EFFECT_WHITESTROBE:                         0x31,
-    EFFECT_MAGENTASTROBE:                       0x32,
-    EFFECT_CYANSTROBE:                          0x33,
-    EFFECT_YELLOWSTROBE:                        0x34,
-    EFFECT_CYANMAGENTASTROBE:                   0x35,
-    EFFECT_CYANYELLOWSTROBE:                    0x36,
-    EFFECT_WHITESTROBERANDOM:                   0x37,
-    EFFECT_WARMWHITESTROBERANDOM:               0x38,
-    EFFECT_GREENSTROBERANDOM:                   0x39,
-    EFFECT_MAGENTASTROBERANDOM:                 0x3A,
-    EFFECT_CYANSTROBERANDOM:                    0x3B,
-    EFFECT_GOLDGREENRING:                       0x3C,
-    EFFECT_CYANRING:                            0x3D,
-    EFFECT_COLORLOOPFOLLOW:                     0x3E,
-    EFFECT_CYANMAGENTALOOPFOLLOW:               0x3F,
-    EFFECT_GREENYELLOWLOOPFOLLOW:               0x40,
-    EFFECT_PINKBLUELOOPFOLLOW:                  0x41,
-    EFFECT_PINKBLUEGREENLOOPFOLLOW:             0x42,
-    EFFECT_CYANMAGENTAYELLOWLOOPFOLLOW:         0x43,
-    EFFECT_REDMAGENTASPINNER:                   0x44,
-    EFFECT_PINKBLUESPINNER:                     0x45,
-    EFFECT_GREENYELLOWSPINNER:                  0x46,
-    EFFECT_BLUEYELLOWSPINNER:                   0x47,
-    EFFECT_REDYELLOWSPINNER:                    0x48,
-    EFFECT_MAGENTAGREENSPINNER:                 0x49,
-    EFFECT_REDBLUESPINNER:                      0x4A,
-    EFFECT_GREENYELLOWSPINNER2:                 0x4B,
-    EFFECT_RGBSPINNER:                          0x4C,
-    EFFECT_REDMAGENTASPINNER2:                  0x4D,
-    EFFECT_PURPLECYANSPINNER:                   0x4E,
-    EFFECT_RBCMSPINNER:                         0x4F,
-    EFFECT_RGBCMY_SPINNER:                      0x50,
-    EFFECT_RGBSPINNER2:                         0x51,
-    EFFECT_BCMSPINNER:                          0x52,
-    EFFECT_REDBLUESPINNER2:                     0x53,
-    EFFECT_CYANMAGENTASPINNER2:                 0x54,
-    EFFECT_YELLOWORANGESPINNER:                 0x55,
-    EFFECT_REDBLUESMALLERSPINNER:               0x56,
-    EFFECT_GREENYELLOWSMALLERSPINNER:           0x57,
-    EFFECT_REDMAGENTAYELLOWSMALLERSPINNER:      0x58,
-    EFFECT_BLUECYANMAJENTASMALLERSPINNER:       0x59,
-    EFFECT_GREENCYANYELLOWORANGESMALLERSPINNER: 0x5A,
-    EFFECT_RAINBOWSPINNER:                      0x5B,
-    EFFECT_REDMAGENTABLUESPINNER:               0x5C,
-    EFFECT_CYANBLUEMAGENTASPINNER:              0x5D,
-    EFFECT_GREENCYANYELLOWSPINNER:              0x5E,
-    EFFECT_REDORANGEYELLOWSPINNER:              0x5F,
-    EFFECT_COLOURSTROBE:                        0x60,
-    EFFECT_MAGENTAPURPLESTROBE:                 0x61,
-    EFFECT_YELLOWORANGESTROBE:                  0x62,
-    EFFECT_CYANYELLOWDEMISTROBE:                0x63,
-    EFFECT_WHITELIGHTENINGSTROBE:               0x64,
-    EFFECT_MAGENTALIGHTENINGSTROBE:             0x65,
-    EFFECT_PURPLELIGHTENINGSTROBE:              0x66,
-    EFFECT_YELLOWLIGHTENINGSTROBE:              0x67,
-    EFFECT_BLUEYELLOWLIGHTENINGSTROBE:          0x68,
-    EFFECT_REDBLUELIGHTENINGSTROBE:             0x69,
-    EFFECT_BLUEMAGENTALIGHTENINGSTROBE:         0x6A,
-    EFFECT_YELLOWLIGHTENINGFADE:                0x6B,
-    EFFECT_MAGENTALIGHTENINGFADE:               0x6C,
-    EFFECT_CYANLIGHTENINGFADE:                  0x6D,
-    EFFECT_REDGREENLIGHTENINGFADE:              0x6E,
-    EFFECT_REDGREENBLUELIGHTENINGFADE:          0x6F,
-    EFFECT_MAGENTACYANREDLIGHTENINGFADE:        0x70
+    EFFECT_ORANGERING: 0x01,
+    EFFECT_REDSMAGENTAFADE: 0x02,
+    EFFECT_ORANGESFADE: 0x03,
+    EFFECT_GREENYELLOWSLOWFADE: 0x04,
+    EFFECT_GREENSPIN: 0x05,
+    EFFECT_BLUESPIN: 0x06,
+    EFFECT_PURPLEPINKSPIN: 0x07,
+    EFFECT_RGBCMYFLASH: 0x08,
+    EFFECT_REDBLUEFLASH: 0x09,
+    EFFECT_CMRGBSPIN: 0x0A,
+    EFFECT_RGBYMCFOLLOW: 0x0B,
+    EFFECT_CMYRGBSPIN: 0x0C,
+    EFFECT_RGBCHASE: 0x0D,
+    EFFECT_RGBTRIREVERSESPIN: 0x0E,
+    EFFECT_REDFADE: 0x0F,
+    EFFECT_BLUEYELLOWSTATIC: 0x10,
+    EFFECT_REDGREENQUADSTATIC: 0x11,
+    EFFECT_CYANMAGENTASTATIC: 0x12,
+    EFFECT_REDGREENREVERSECHASE: 0x13,
+    EFFECT_CYANMAGENTASPIN: 0x15,
+    EFFECT_YELLOWRGBREVERSESPIN: 0x16,
+    EFFECT_CYANRGBREVERSESPIN: 0x17,
+    EFFECT_MAGENTARGBREVERSESPIN: 0x18,
+    EFFECT_RGBTRIREVERSESPIN: 0x19,
+    EFFECT_RGBYREVERSESPIN: 0x1A,
+    EFFECT_MAGENTARGBYREVERSESPIN: 0x1B,
+    EFFECT_CYANRGBYMCREVERSESPIN: 0x1C,
+    EFFECT_WHITERGBYMVREVERSESPIN: 0x1D,
+    EFFECT_REDGREENREVERSECHASE2: 0x1E,
+    #EFFECT_BLUEYELLOWSPIN2: 0x1F, # This one went missing in the refacor of effect names.  Meh.
+    EFFECT_CYANPINKSPIN: 0x20,
+    EFFECT_COOLWHITEFLASH: 0x21,
+    EFFECT_COOLWHITESTROBE: 0x22,
+    EFFECT_RGBCMYFLASH: 0x23,
+    EFFECT_MAGENTAPURPLEFADE: 0x24,
+    EFFECT_WHITESTATIC: 0x25,
+    EFFECT_PINKSFADE: 0x26,
+    EFFECT_CYANSFADE: 0x27,
+    EFFECT_CYANMAGENTASLOWFADE: 0x28,
+    EFFECT_GREENYELLOWFADE: 0x29,
+    EFFECT_RGBCMYSLOWFADE: 0x2A,
+    EFFECT_WHITESFADE: 0x2B,
+    EFFECT_PINKPURPLEFADE: 0x2C,
+    EFFECT_CYANMAGENTAFADE: 0x2D,
+    EFFECT_CYANBLUEFADE: 0x2E,
+    EFFECT_YELLOWCYANFADE: 0x2F,
+    EFFECT_REDYELLOWFADE: 0x30,
+    EFFECT_RGBCMYFLASH: 0x31,
+    EFFECT_WARMCOOLWHITESTROBE: 0x32,
+    EFFECT_MAGENTASTROBE: 0x33,
+    EFFECT_CYANSTROBE: 0x34,
+    EFFECT_YELLOWSTROBE: 0x35,
+    EFFECT_MAGENTACYANSTROBE: 0x36,
+    EFFECT_CYANYELLOWSTROBE: 0x37,
+    EFFECT_WARMWHITESTROBERANDOM: 0x38,
+    EFFECT_WARMWHITESTROBERANDOM: 0x39,
+    EFFECT_LIGHTGREENSTROBE: 0x3A,
+    EFFECT_MAGENTASTROBERANDOM: 0x3B,
+    EFFECT_CYANSTROBERANDOM: 0x3C,
+    EFFECT_ORANGERING: 0x3D,
+    EFFECT_BLUERING: 0x3E,
+    EFFECT_RGBCGYLOOP: 0x3F,
+    EFFECT_CYANMAGENTAFOLLOW: 0x40,
+    EFFECT_YELLOWGREENFOLLOW: 0x41,
+    EFFECT_PINKBLUEFOLLOW: 0x42,
+    EFFECT_BGPPASTELSLOOP: 0x43,
+    EFFECT_CMYFOLLOW: 0x44,
+    EFFECT_PINKPURPLEDEMISPINNER: 0x45,
+    EFFECT_BLUEPINKSPINNER: 0x46,
+    EFFECT_GREENSPINNER: 0x47,
+    EFFECT_BLUEYELLOWTRISPINNER: 0x48,
+    EFFECT_REDYELLOWQUADSPINNER: 0x49,
+    EFFECT_PINKGREENSPINNER: 0x4A,
+    EFFECT_REDBLUEDEMISPINNER: 0x4B,
+    EFFECT_YELLOWGREENDEMISPINNER: 0x4C,
+    EFFECT_RGBTRISPIN: 0x4D,
+    EFFECT_REDMAGENTADEMISPIN: 0x4E,
+    EFFECT_CYANMAGENTADEMISPIN: 0x4F,
+    EFFECT_RGBMQUADSPINNER: 0x50,
+    EFFECT_RGBCMYSPINNER: 0x51,
+    EFFECT_RGBSPINNER: 0x52,
+    EFFECT_CMYSPINNER: 0x53,
+    EFFECT_REDBLUESPINNER: 0x54,
+    EFFECT_CYANMAGENTADEMISPINNER: 0x55,
+    EFFECT_YELLOWORANGEDEMISPINNER: 0x56,
+    EFFECT_REDBLUESTRIPEDSPINNER: 0x57,
+    EFFECT_GREENYELLOWSTRIPEDSPINNER: 0x58,
+    EFFECT_RPYSMALLSPINNER: 0x59,
+    EFFECT_CBMSMALLSPINNER: 0x5A,
+    EFFECT_PASTELSSPINNER: 0x5B,
+    EFFECT_RAINBOWSPIN: 0x5C,
+    EFFECT_REDPINKBLUESPINNER: 0x5D,
+    EFFECT_CYANMAGENTASPINNER: 0x5E,
+    EFFECT_GREENCYANSPINNER: 0x5F,
+    EFFECT_YELLOWREDSPINNER: 0x60,
+    EFFECT_RAINBOWSTROBE: 0x61,
+    EFFECT_MAGENTASTROBE: 0x62,
+    EFFECT_YELLOWORANGESEMISTROBE: 0x63,
+    EFFECT_YELLOWCYANDEMIFLASH: 0x64,
+    EFFECT_WHITELIGHTENINGSTROBERANDOM: 0x65,
+    EFFECT_PURPLELIGHTENINGSTROBE: 0x66,
+    EFFECT_MAGENTALIGHTENINGSTROBE: 0x67,
+    EFFECT_YELLOWLIGHTENINGSTROBE: 0x68,
+    EFFECT_BLUEWITHSPARKELS: 0x69,
+    EFFECT_REDLIGHTENING: 0x6A,
+    EFFECT_BLUESPARKELS: 0x6B,
+    EFFECT_YELLOWLIGHTENINGFADE: 0x6C,
+    EFFECT_MAGENTALIGHTENINGFADE: 0x6D,
+    EFFECT_CYANDISOLVE: 0x6E,
+    EFFECT_REDGREENBLUEDISOLVE: 0x6F,
+    EFFECT_RGBSPOTFADE: 0x70,
+    EFFECT_WILL, 0x71
 }
 
 EFFECT_LIST = sorted(EFFECT_MAP)
 EFFECT_ID_TO_NAME = {v: k for k, v in EFFECT_MAP.items()}
-
