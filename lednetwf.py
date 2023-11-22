@@ -39,6 +39,10 @@ TURN_ON_CMD = [
 TURN_OFF_CMD = [
     bytearray.fromhex("00 5b 80 00 00 0d 0e 0b 3b 24 00 00 00 00 00 00 00 32 00 00 91")
 ]
+
+INITIAL_PACKET         = bytearray.fromhex("00 01 80 00 00 04 05 0a 81 8a 8b 96")
+INITIAL_PACKET_2       = bytearray.fromhex("00 02 80 00 00 0c 0d 0b 10 14 16 0b 05 0d 36 36 06 00 0f d8")
+
 MIN_COLOR_TEMPS_K = [2700]
 MAX_COLOR_TEMPS_K = [6500]
 
@@ -365,6 +369,12 @@ class LEDNETWFInstance:
             LOGGER.debug("%s: Subscribe to notifications", self.name)
             await client.start_notify(self._read_uuid, self._notification_handler)
 
+            # Send initial packets to device to see if it sends notifications
+            LOGGER.debug("%s: Send initial packets", self.name)
+            await self._write_while_connected(INITIAL_PACKET)
+            await self._write_while_connected(INITIAL_PACKET_2)
+            
+
     def _notification_handler(self, _sender: int, data: bytearray) -> None:
         """Handle notification responses."""
         LOGGER.debug("%s: Notification received", self.name, data.hex())
@@ -375,6 +385,7 @@ class LEDNETWFInstance:
         for characteristic in NOTIFY_CHARACTERISTIC_UUIDS:
             if char := services.get_characteristic(characteristic):
                 self._read_uuid = char
+                LOGGER.debug("%s: Read UUID: %s", self.name, self._read_uuid)
                 break
         for characteristic in WRITE_CHARACTERISTIC_UUIDS:
             if char := services.get_characteristic(characteristic):
