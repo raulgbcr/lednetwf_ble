@@ -17,8 +17,9 @@ from bleak_retry_connector import (
 from typing import Any, TypeVar, cast, Tuple
 from collections.abc import Callable
 import traceback
-import asyncio
 import logging
+import colorsys
+
 
 # Add effects information in a separate file because there is a LOT of boilerplate.
 from .effects import (
@@ -32,25 +33,16 @@ LOGGER = logging.getLogger(__name__)
 NAME_ARRAY = ["LEDnetWF"]
 WRITE_CHARACTERISTIC_UUIDS    = ["0000ff01-0000-1000-8000-00805f9b34fb"]
 NOTIFY_CHARACTERISTIC_UUIDS   = ["0000ff02-0000-1000-8000-00805f9b34fb"]
-NOT2 = "ff02"
-SERVICE_CHARACTERISTICS_UUIDS = ["0000ffff-0000-1000-8000-00805f9b34fb"]
-TURN_ON_CMD = [
-    bytearray.fromhex("00 04 80 00 00 0d 0e 0b 3b 23 00 00 00 00 00 00 00 32 00 00 90")
-]
-TURN_OFF_CMD = [
-    bytearray.fromhex("00 5b 80 00 00 0d 0e 0b 3b 24 00 00 00 00 00 00 00 32 00 00 91")
-]
-
-INITIAL_PACKET         = bytearray.fromhex("00 01 80 00 00 04 05 0a 81 8a 8b 96")
-
+TURN_ON_CMD    = [bytearray.fromhex("00 04 80 00 00 0d 0e 0b 3b 23 00 00 00 00 00 00 00 32 00 00 90")]
+TURN_OFF_CMD   = [bytearray.fromhex("00 5b 80 00 00 0d 0e 0b 3b 24 00 00 00 00 00 00 00 32 00 00 91")]
+INITIAL_PACKET = bytearray.fromhex("00 01 80 00 00 04 05 0a 81 8a 8b 96")
 MIN_COLOR_TEMPS_K = [2700]
 MAX_COLOR_TEMPS_K = [6500]
-
 DEFAULT_ATTEMPTS = 3
 BLEAK_BACKOFF_TIME = 0.25
 RETRY_BACKOFF_EXCEPTIONS = (BleakDBusError,)
-WrapFuncType = TypeVar("WrapFuncType", bound=Callable[..., Any])
 
+WrapFuncType = TypeVar("WrapFuncType", bound=Callable[..., Any])
 
 def retry_bluetooth_connection_error(func: WrapFuncType) -> WrapFuncType:
     async def _async_wrap_retry_bluetooth_connection_error(
@@ -116,6 +108,12 @@ def retry_bluetooth_connection_error(func: WrapFuncType) -> WrapFuncType:
     return cast(WrapFuncType, _async_wrap_retry_bluetooth_connection_error)
 
 
+def rgb_to_hsv(r,g,b):
+    h, s, v = colorsys.rgb_to_hsv(r/255.0,g/255.0,b/255.0)
+    h, s, v = int(h*360), int(s*100), int(v*100)
+    #h = int(h/2)
+    return [h,s,v]
+
 class LEDNETWFInstance:
     def __init__(self, address, reset: bool, delay: int, hass) -> None:
         self.loop = asyncio.get_running_loop()
@@ -149,11 +147,10 @@ class LEDNETWFInstance:
         self._min_color_temp_kelvin = None
         self._model = self._detect_model()
         LOGGER.debug(
-            "Model information for device %s : ModelNo %s, Turn on cmd %s, Turn off cmd %s",
+            "Model information for device %s : ModelNo %s.",
+            # TODO Add mac address
             self._device.name,
-            self._model,
-            self._turn_on_cmd,
-            self._turn_off_cmd,
+            self._model
         )
 
     def _detect_model(self):
@@ -180,6 +177,69 @@ class LEDNETWFInstance:
     async def _write_while_connected(self, data: bytearray):
         LOGGER.debug("".join(format(x, " 03x") for x in data))
         await self._client.write_gatt_char(self._write_uuid, data, False)
+    
+    def _notification_handler(self, _sender: BleakGATTCharacteristic, data: bytearray) -> None:
+        """Handle notification responses."""
+        # response from a 5-channel LEDENET controller:
+        #pos  0  1  2  3  4  5  6  7  8  9 10 11 12 13
+        #    81 25 23 61 21 06 38 05 06 f9 01 00 0f 9d
+        #     |  |  |  |  |  |  |  |  |  |  |  |  |  |
+        #     |  |  |  |  |  |  |  |  |  |  |  |  |  checksum
+        #     |  |  |  |  |  |  |  |  |  |  |  |  color mode (f0 colors were set, 0f whites, 00 all were set)
+        #     |  |  |  |  |  |  |  |  |  |  |  cool-white  0x00 to 0xFF
+        #     |  |  |  |  |  |  |  |  |  |  version number
+        #     |  |  |  |  |  |  |  |  |  warmwhite  0x00 to 0xFF
+        #     |  |  |  |  |  |  |  |  blue  0x00 to 0xFF
+        #     |  |  |  |  |  |  |  green  0x00 to 0xFF
+        #     |  |  |  |  |  |  red 0x00 to 0xFF
+        #     |  |  |  |  |  speed: 0x01 = highest 0x1f is lowest
+        #     |  |  |  |  Mode WW(01), WW+CW(02), RGB(03), RGBW(04), RGBWW(05)
+        #     |  |  |  preset pattern
+        #     |  |  off(24)/on(23)
+        #     |  model_num (type)
+        #     msg head
+        LOGGER.debug("Original callback")
+        LOGGER.debug("Sender: %s", _sender)
+        LOGGER.debug("%s: Notification received: %r", self.name, data)
+        response_str = data.decode("utf-8", errors="ignore")
+        last_quote = response_str.rfind('"')
+        if last_quote > 0:
+            first_quote = response_str.rfind('"', 0, last_quote)
+            if first_quote > 0:
+                payload = response_str[first_quote+1:last_quote]
+            else:
+                return None
+        else:
+            return None
+        LOGGER.debug("Payload: %s", payload)
+        response = bytearray.fromhex(payload)
+        LOGGER.debug("Response: %s", response)
+        power  = response[2]
+        effect = response[3]
+        mode   = response[4]
+        speed  = response[5]
+        red    = response[6]
+        green  = response[7]
+        blue   = response[8]
+        warmw  = response[9]
+        version= response[10]
+        coolw  = response[11]
+        colmode = response[12] 
+        checksum = response[13]
+        LOGGER.debug(f"Power: {power}: {hex(power)}")
+        LOGGER.debug(f"Effect: {effect}: {hex(effect)}")
+        LOGGER.debug(f"Mode: {mode}: {hex(mode)}")
+        LOGGER.debug(f"Speed: {speed}: {hex(speed)}"
+        LOGGER.debug(f"Red: {red}: {hex(red)}")
+        LOGGER.debug(f"Green: {green}: {hex(green)}")
+        LOGGER.debug(f"Blue: {blue}: {hex(blue)}")
+        LOGGER.debug(f"Warm White: {warmw}: {hex(warmw)}" )
+        LOGGER.debug(f"Cool White: {coolw}: {hex(coolw)}")
+        LOGGER.debug(f"Version: {version}: {hex(version)}")
+        LOGGER.debug(f"Color Mode: {colmode}: {hex(colmode)}")
+        LOGGER.debug(f"Checksum: {checksum}: {hex(checksum)}")
+
+
 
     @property
     def mac(self):
@@ -248,15 +308,10 @@ class LEDNETWFInstance:
             brightness = self._brightness
         brightness_percent = int(brightness * 100 / 255)
         # Color temp packet + brightness
-        await self._write(
-            bytearray.fromhex(
-                "00 10 80 00 00 0d 0e 0b 3b b1 00 00 00 "
-                + str(hex(color_temp_percent)[2:]).rjust(2, "0")
-                + " "
-                + str(hex(brightness_percent)[2:]).rjust(2, "0")
-                + " 00 00 00 00 00 3d"
-            )
-        )
+        color_temp_kelvin_packet = bytearray.fromhex("00 10 80 00 00 0d 0e 0b 3b b1 00 00 00 00 00 00 00 00 00 00 3d")
+        color_temp_kelvin_packet[13] = color_temp_percent
+        color_temp_kelvin_packet[14] = brightness_percent
+        await self._write(color_temp_kelvin_packet)
 
     @retry_bluetooth_connection_error
     async def set_hs_color(self, hs: Tuple[int, int], brightness: int):
@@ -265,6 +320,7 @@ class LEDNETWFInstance:
         # Saturation and Value are percentages from 0 to 100 (0x64).
         # Value = Brightness
         self._hs_color = hs
+        self._effect = None
         hue = int(hs[0] / 2)
         saturation = int(hs[1])
         if brightness is None:
@@ -273,18 +329,11 @@ class LEDNETWFInstance:
             brightness = self._brightness
         brightness_percent = int(brightness * 100 / 255)
         # HSV packet
-        self._effect = None
-        await self._write(
-            bytearray.fromhex(
-                "00 05 80 00 00 0d 0e 0b 3b a1 "
-                + str(hex(hue)[2:]).rjust(2, "0")
-                + " "
-                + str(hex(saturation)[2:]).rjust(2, "0")
-                + " "
-                + str(hex(brightness_percent)[2:]).rjust(2, "0")
-                + " 00 00 00 00 00 00 00 3d"
-            )
-        )
+        color_hs_packet = bytearray.fromhex("00 00 80 00 00 0d 0e 0b 3b a1 00 64 64 00 00 00 00 00 00 00 00")
+        color_hs_packet[10] = hue
+        color_hs_packet[11] = saturation
+        color_hs_packet[12] = brightness_percent
+        await self._write(color_hs_packet)      
 
     @retry_bluetooth_connection_error
     async def set_effect(self, effect: str, brightness: int):
@@ -323,6 +372,7 @@ class LEDNETWFInstance:
 
     @retry_bluetooth_connection_error
     async def update(self):
+        # TODO: Needs updating
         try:
             await self._ensure_connected()
             if self._is_on is None:
@@ -372,18 +422,13 @@ class LEDNETWFInstance:
             self._reset_disconnect_timer()
 
             # Subscribe to notification is needed for LEDnetWF devices to accept commands
-            LOGGER.debug("%s: Subscribe to notifications", self.name)
-            await client.start_notify(self._read_uuid, self._notification_handler)
+            self._notification_callback = self._notification_handler
+            await client.start_notify(self._read_uuid, self._notification_callback)
+            LOGGER.debug("%s: Subscribed to notifications", self.name)
             
             # Send initial packets to device to see if it sends notifications
             LOGGER.debug("%s: Send initial packets", self.name)
             await self._write_while_connected(INITIAL_PACKET)
-
-
-    def _notification_handler(self, _sender: BleakGATTCharacteristic, data: bytearray) -> None:
-        """Handle notification responses."""
-        LOGGER.debug("%s: Notification received", self.name, data.hex())
-        return
 
     def _resolve_characteristics(self, services: BleakGATTServiceCollection) -> bool:
         """Resolve characteristics."""
