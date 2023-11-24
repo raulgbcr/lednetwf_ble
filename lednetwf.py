@@ -2,6 +2,10 @@ import asyncio
 from datetime import datetime
 from homeassistant.components import bluetooth
 from homeassistant.exceptions import ConfigEntryNotReady
+# from homeassistant.helpers.update_coordinator import (
+#     CoordinatorEntity,
+#     DataUpdateCoordinator,
+# )
 
 from bleak.backends.device import BLEDevice
 from bleak.backends.service import BleakGATTCharacteristic, BleakGATTServiceCollection
@@ -26,6 +30,7 @@ from .effects import (
     EFFECT_MAP,
     EFFECT_LIST,
     EFFECT_CMD,
+    EFFECT_ID_TO_NAME
 )
 
 LOGGER = logging.getLogger(__name__)
@@ -146,6 +151,8 @@ class LEDNETWFInstance:
         self._max_color_temp_kelvin = None
         self._min_color_temp_kelvin = None
         self._model = self._detect_model()
+        self._on_update_callbacks = []
+        
         LOGGER.debug(
             "Model information for device %s : ModelNo %s.",
             # TODO Add mac address
@@ -180,26 +187,6 @@ class LEDNETWFInstance:
     
     def _notification_handler(self, _sender: BleakGATTCharacteristic, data: bytearray) -> None:
         """Handle notification responses."""
-        # response from a 5-channel LEDENET controller:
-        #pos  0  1  2  3  4  5  6  7  8  9 10 11 12 13
-        #    81 25 23 61 21 06 38 05 06 f9 01 00 0f 9d
-        #     |  |  |  |  |  |  |  |  |  |  |  |  |  |
-        #     |  |  |  |  |  |  |  |  |  |  |  |  |  checksum
-        #     |  |  |  |  |  |  |  |  |  |  |  |  color mode (f0 colors were set, 0f whites, 00 all were set)
-        #     |  |  |  |  |  |  |  |  |  |  |  cool-white  0x00 to 0xFF
-        #     |  |  |  |  |  |  |  |  |  |  version number
-        #     |  |  |  |  |  |  |  |  |  warmwhite  0x00 to 0xFF
-        #     |  |  |  |  |  |  |  |  blue  0x00 to 0xFF
-        #     |  |  |  |  |  |  |  green  0x00 to 0xFF
-        #     |  |  |  |  |  |  red 0x00 to 0xFF
-        #     |  |  |  |  |  speed: 0x01 = highest 0x1f is lowest
-        #     |  |  |  |  Mode WW(01), WW+CW(02), RGB(03), RGBW(04), RGBWW(05)
-        #     |  |  |  preset pattern
-        #     |  |  off(24)/on(23)
-        #     |  model_num (type)
-        #     msg head
-        LOGGER.debug("Original callback")
-        LOGGER.debug("Sender: %s", _sender)
         LOGGER.debug("%s: Notification received: %r", self.name, data)
         response_str = data.decode("utf-8", errors="ignore")
         last_quote = response_str.rfind('"')
@@ -215,31 +202,87 @@ class LEDNETWFInstance:
         response = bytearray.fromhex(payload)
         LOGGER.debug("Response: %s", response)
         power  = response[2]
-        effect = response[3]
-        mode   = response[4]
+        mode   = response[3]
+        effect = response[4]
         speed  = response[5]
         red    = response[6]
         green  = response[7]
         blue   = response[8]
-        warmw  = response[9]
+        whiteperc  = response[9]
         version= response[10]
         coolw  = response[11]
         colmode = response[12] 
         checksum = response[13]
+
+        if power == 0x23:
+            self._is_on = True
+        elif power == 0x24:
+            self._is_on = False
+
+        LOGGER.debug("--------------- begin deducing state ------------")
+        if mode == 0x61:
+            if effect == 0xf0:
+                # HSV mode 
+                hsv = rgb_to_hsv(response[6],response[7],response[8])
+                hs_color = (hsv[0],hsv[1])
+                # convert brightness from 0-100 to 0-255
+                device_brightness = int(hsv[2] * 255 / 100)
+                self._effect = None
+                self._color_temp_kelvin = None
+                self._hs_color = hs_color
+                self._brightness = device_brightness
+                LOGGER.debug(f"HS Color: {hs_color}")
+                #LOGGER.debug(f"System colour: {self._hs_color}")
+                LOGGER.debug(f"Brightness: {device_brightness}")
+                #LOGGER.debug(f"System brightness: {self._brightness}")
+            if effect == 0x0f:
+                # White mode
+                device_brightness = int(response[5] * 255 / 100)
+                col_temp = response[9]
+                LOGGER.debug("White mode")
+                #LOGGER.debug(f"Color Temp percent: {col_temp}")
+                # convert col_temp in to kelvin
+                color_temp_kelvin = self._min_color_temp_kelvin + col_temp * (self._max_color_temp_kelvin - self._min_color_temp_kelvin) / 100
+                LOGGER.debug(f"Color Temp kelvin: {color_temp_kelvin}")
+                #LOGGER.debug(f"System color temp: {self._color_temp_kelvin}")
+                LOGGER.debug(f"Brightness: {device_brightness}")
+                #LOGGER.debug(f"System brightness: {self._brightness}")
+                self._effect = None
+                self._hs_color = None
+                self._color_temp_kelvin = color_temp_kelvin
+        if mode == 0x25:
+            # Effects mode
+            LOGGER.debug("Effects mode")
+            device_brightness = red
+            LOGGER.debug(f"Brightness: {device_brightness}%")
+            try:
+                effect_name = EFFECT_ID_TO_NAME[effect]
+                LOGGER.debug(f"Effect: {effect_name}")
+            except KeyError:
+                LOGGER.debug("Effect not found")
+                effect_name = "Unknown"
+            self._hs_color = None
+            self._color_temp_kelvin = None
+            self._effect = effect_name
+            self._brightness = device_brightness
+
+        LOGGER.debug("------  raw data  ------")
         LOGGER.debug(f"Power: {power}: {hex(power)}")
         LOGGER.debug(f"Effect: {effect}: {hex(effect)}")
         LOGGER.debug(f"Mode: {mode}: {hex(mode)}")
-        LOGGER.debug(f"Speed: {speed}: {hex(speed)}"
+        LOGGER.debug(f"Speed: {speed}: {hex(speed)}")
         LOGGER.debug(f"Red: {red}: {hex(red)}")
         LOGGER.debug(f"Green: {green}: {hex(green)}")
         LOGGER.debug(f"Blue: {blue}: {hex(blue)}")
-        LOGGER.debug(f"Warm White: {warmw}: {hex(warmw)}" )
+        LOGGER.debug(f"Warm White: {whiteperc}: {hex(whiteperc)}" )
         LOGGER.debug(f"Cool White: {coolw}: {hex(coolw)}")
         LOGGER.debug(f"Version: {version}: {hex(version)}")
         LOGGER.debug(f"Color Mode: {colmode}: {hex(colmode)}")
         LOGGER.debug(f"Checksum: {checksum}: {hex(checksum)}")
-
-
+        LOGGER.debug("================================ end")
+        LOGGER.debug("Calling callbacks")
+        for callback in self._on_update_callbacks:
+            callback()
 
     @property
     def mac(self):
@@ -263,7 +306,10 @@ class LEDNETWFInstance:
 
     @property
     def brightness(self):
-        return self._brightness
+        if self._brightness:
+            return self._brightness 
+        else:
+            return 255
 
     @property
     def min_color_temp_kelvin(self):
@@ -292,7 +338,10 @@ class LEDNETWFInstance:
     @retry_bluetooth_connection_error
     async def set_color_temp_kelvin(self, value: int, brightness: int):
         # White colours are represented by colour temperature percentage from 0x0 to 0x64 from warm to cool
-        # Warm (0x0) is only the warm white LED, cool (0x64) is only the white LED and then a mixture between the two
+        # Warm (0x0) is only the warm white LED, cool (0x64) is only the cool white LED and then a mixture between the two
+        if value is None or brightness is None:
+            LOGGER.debug("Color temp or brightness is None")
+            return
         self._color_temp_kelvin = value
         if value < self._min_color_temp_kelvin:
             value = self._min_color_temp_kelvin
@@ -372,15 +421,15 @@ class LEDNETWFInstance:
 
     @retry_bluetooth_connection_error
     async def update(self):
-        # TODO: Needs updating
+        LOGGER.debug("%s: Update in lwdnetwf called", self.name)
         try:
+            #await self._write(INITIAL_PACKET)
             await self._ensure_connected()
             if self._is_on is None:
                 self._is_on = False
                 self._hs_color = (0, 0)
                 self._color_temp_kelvin = 5000
                 self._brightness = 255
-
         except Exception as error:
             self._is_on = False
             LOGGER.error("Error getting status: %s", error)
@@ -494,3 +543,8 @@ class LEDNETWFInstance:
             if client and client.is_connected:
                 await client.stop_notify(read_char) #  TODO:  I don't think this is needed.  Bleak docs say it isnt.
                 await client.disconnect()
+    
+    def register_on_update_callback(self, callback):
+        LOGGER.debug("Registering callback")
+        self._on_update_callbacks.append(callback)
+    

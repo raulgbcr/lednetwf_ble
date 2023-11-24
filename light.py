@@ -35,9 +35,7 @@ async def async_setup_entry(hass, config_entry, async_add_devices):
     async_add_devices(
         [LEDNETWFLight(instance, config_entry.data["name"], config_entry.entry_id)]
     )
-    # config_entry.async_on_unload(
-    #     await instance.stop()
-    # )
+    config_entry.async_on_unload(await instance.stop())
 
 
 class LEDNETWFLight(LightEntity):
@@ -47,21 +45,21 @@ class LEDNETWFLight(LightEntity):
         self._instance = lednetwfinstance
         self._entry_id = entry_id
         self._attr_supported_color_modes = {ColorMode.COLOR_TEMP, ColorMode.HS}
+        #self._attr_supported_features = [LightEntityFeature.EFFECT, LightEntityFeature.FLASH]
         self._attr_supported_features = LightEntityFeature.EFFECT
         self._color_mode = ColorMode.COLOR_TEMP
         self._attr_name = name
-        self._effect = None
         self._attr_unique_id = self._instance.mac
-
+        self._effect = None
+        self._instance._notification_handler = self.local_callback
+        
     @property
     def available(self):
         return self._instance.is_on != None
 
     @property
     def brightness(self):
-        if self._instance.brightness:
-            return self._instance.brightness
-        return 255
+        return self._instance.brightness
 
     @property
     def is_on(self) -> Optional[bool]:
@@ -93,7 +91,8 @@ class LEDNETWFLight(LightEntity):
 
     @property
     def effect(self):
-        return self._effect
+        # Changed from self._effect
+        return self._instance.effect
 
     @property
     def supported_features(self) -> int:
@@ -133,14 +132,14 @@ class LEDNETWFLight(LightEntity):
         return False
 
     async def async_turn_on(self, **kwargs: Any) -> None:
-        # LOGGER.debug("kwargs: %s", kwargs)
-        # LOGGER.debug("self._color_mode: %s", self._color_mode)
-        # LOGGER.debug("self._effect: %s", self._effect)
+        LOGGER.debug("kwargs: %s", kwargs)
+        LOGGER.debug("self._color_mode: %s", self._color_mode)
+        LOGGER.debug("self._effect: %s", self._effect)
         if not self.is_on:
             await self._instance.turn_on()
 
         if ATTR_BRIGHTNESS in kwargs and kwargs[ATTR_BRIGHTNESS] != self.brightness:
-            self._brightness = kwargs[ATTR_BRIGHTNESS]
+            #new_brightness = kwargs[ATTR_BRIGHTNESS]
             await self._instance.set_brightness_local(kwargs[ATTR_BRIGHTNESS])
             # Call rgb or temp color functions in order to update the brightness (same packet)
             if (
@@ -148,18 +147,16 @@ class LEDNETWFLight(LightEntity):
                 and ATTR_COLOR_TEMP_KELVIN not in kwargs
             ):
                 await self._instance.set_color_temp_kelvin(
-                    self._instance.color_temp_kelvin, self._brightness
-                )
+                    self._instance.color_temp_kelvin, self._instance.brightness)
             elif (
                 self._color_mode is ColorMode.HS
                 and ATTR_HS_COLOR not in kwargs
                 and self._effect is None
             ):
                 await self._instance.set_hs_color(
-                    self._instance.hs_color, self._brightness
-                )
+                    self._instance.hs_color, self._instance.brightness)
             elif self._effect is not None and ATTR_EFFECT not in kwargs:
-                await self._instance.set_effect(self._effect, self._brightness)
+                await self._instance.set_effect(self._effect, self._instance.brightness)
 
         if ATTR_COLOR_TEMP_KELVIN in kwargs:
             self._color_mode = ColorMode.COLOR_TEMP
@@ -177,7 +174,7 @@ class LEDNETWFLight(LightEntity):
                 )
         elif ATTR_EFFECT in kwargs:
             self._color_mode = None
-            if kwargs[ATTR_EFFECT] != self.effect:
+            if kwargs[ATTR_EFFECT] != self._effect:
                 self._effect = kwargs[ATTR_EFFECT]
                 await self._instance.set_effect(kwargs[ATTR_EFFECT], self.brightness)
 
@@ -197,10 +194,46 @@ class LEDNETWFLight(LightEntity):
         self.async_write_ha_state()
 
     async def async_update(self) -> None:
+        LOGGER.critical("async update called")
         await self._instance.update()
+
         self.async_write_ha_state()
 
     async def async_set_effect(self, effect: str) -> None:
         self._effect = effect
         await self._instance.set_effect(effect, None)
         self.async_write_ha_state()
+    
+    def local_callback(self, _sender, data: bytearray) -> None:
+        LOGGER.critical("%s: Notification received: %r", self.name, data)
+        response_str = data.decode("utf-8", errors="ignore")
+        last_quote = response_str.rfind('"')
+        if last_quote > 0:
+            first_quote = response_str.rfind('"', 0, last_quote)
+            if first_quote > 0:
+                payload = response_str[first_quote+1:last_quote]
+            else:
+                return None
+        else:
+            return None
+        LOGGER.critical("Payload: %s", payload)
+        response = bytearray.fromhex(payload)
+        LOGGER.critical("Response: %s", response)
+        #self.async_write_ha_state()
+
+    def update_ha_state(self) -> None:
+        return
+        LOGGER.critical("update_ha_state called")
+        if self.hs_color is None and self.color_temp_kelvin is None:
+            self._color_mode = None
+        elif self.hs_color is not None:
+            self._color_mode = ColorMode.HS
+        elif self.color_temp_kelvin is not None:
+            self._color_mode = ColorMode.COLOR_TEMP
+        self.brightness = self._instance.brightness
+        self.effect = self._instance.effect
+        self.hs_color = self._instance.hs_color
+        self.available = self._instance.is_on != None
+        self.schedule_update_ha_state()
+       
+
