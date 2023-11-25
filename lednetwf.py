@@ -280,9 +280,9 @@ class LEDNETWFInstance:
         LOGGER.debug(f"Color Mode: {colmode}: {hex(colmode)}")
         LOGGER.debug(f"Checksum: {checksum}: {hex(checksum)}")
         LOGGER.debug("================================ end")
-        LOGGER.debug("Calling callbacks")
-        for callback in self._on_update_callbacks:
-            callback()
+        LOGGER.debug("Calling next callback")
+        self.local_callback()
+
 
     @property
     def mac(self):
@@ -546,5 +546,9 @@ class LEDNETWFInstance:
     
     def register_on_update_callback(self, callback):
         LOGGER.debug("Registering callback")
-        self._on_update_callbacks.append(callback)
+        #self._on_update_callbacks.append(callback)
     
+    def local_callback(self):
+        # Placeholder to be replaced by a call from light.py
+        # I can't work out how to plumb a callback from here to light.py
+        return

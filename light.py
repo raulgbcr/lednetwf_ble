@@ -51,7 +51,8 @@ class LEDNETWFLight(LightEntity):
         self._attr_name = name
         self._attr_unique_id = self._instance.mac
         self._effect = None
-        self._instance._notification_handler = self.local_callback
+        #self._instance._notification_handler = self.local_callback
+        self._instance.local_callback = self.test_local_callback
         
     @property
     def available(self):
@@ -205,7 +206,7 @@ class LEDNETWFLight(LightEntity):
         self.async_write_ha_state()
     
     def local_callback(self, _sender, data: bytearray) -> None:
-        LOGGER.critical("%s: Notification received: %r", self.name, data)
+        LOGGER.debug("%s: Notification received: %r", self.name, data)
         response_str = data.decode("utf-8", errors="ignore")
         last_quote = response_str.rfind('"')
         if last_quote > 0:
@@ -219,7 +220,12 @@ class LEDNETWFLight(LightEntity):
         LOGGER.critical("Payload: %s", payload)
         response = bytearray.fromhex(payload)
         LOGGER.critical("Response: %s", response)
-        #self.async_write_ha_state()
+        self.async_write_ha_state()
+    
+    def test_local_callback(self):
+        LOGGER.critical("test_local_callback called")
+        
+        self.async_write_ha_state()
 
     def update_ha_state(self) -> None:
         return
