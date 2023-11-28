@@ -4,7 +4,7 @@
   "bluetooth": [
       { "local_name": "LEDnetWF*" }
     ],
-  "codeowners": ["@raulgbcr"],
+  "codeowners": ["@raulgbcr", "@8none1"],
   "config_flow": true,
   "dependencies": ["bluetooth"],
   "documentation": "https://github.com/raulgbcr/lednetwf_ble",
