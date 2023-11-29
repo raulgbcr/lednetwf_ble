@@ -21,7 +21,6 @@ This have only been tested with Zengge LEDnetWF devices, may also be known as:
 - Effects
 - Live status updates from remote control (once connected)
 
-
 ## Installation
 
 ### Requirements
@@ -30,7 +29,7 @@ You need to have the bluetooth component configured and working in Home Assistan
 
 ### Manual installation
 
-Clone this repository into `config/custom_components/lednetwf_ble` Home Assistant folder.
+Clone this repository into `config/` Home Assistant folder.
 
 ### Config
 
