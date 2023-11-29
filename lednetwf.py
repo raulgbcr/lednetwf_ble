@@ -2,6 +2,12 @@ import asyncio
 from datetime import datetime
 from homeassistant.components import bluetooth
 from homeassistant.exceptions import ConfigEntryNotReady
+# from homeassistant.helpers.update_coordinator import (
+#     CoordinatorEntity,
+#     DataUpdateCoordinator,
+# )
+
+from homeassistant.components.light import (ColorMode)
 
 from bleak.backends.device import BLEDevice
 from bleak.backends.service import BleakGATTCharacteristic, BleakGATTServiceCollection
@@ -17,14 +23,15 @@ from bleak_retry_connector import (
 from typing import Any, TypeVar, cast, Tuple
 from collections.abc import Callable
 import traceback
-import asyncio
 import logging
+import colorsys
+
 
 # Add effects information in a separate file because there is a LOT of boilerplate.
 from .effects import (
     EFFECT_MAP,
     EFFECT_LIST,
-    EFFECT_CMD,
+    EFFECT_ID_TO_NAME
 )
 
 LOGGER = logging.getLogger(__name__)
@@ -32,25 +39,16 @@ LOGGER = logging.getLogger(__name__)
 NAME_ARRAY = ["LEDnetWF"]
 WRITE_CHARACTERISTIC_UUIDS    = ["0000ff01-0000-1000-8000-00805f9b34fb"]
 NOTIFY_CHARACTERISTIC_UUIDS   = ["0000ff02-0000-1000-8000-00805f9b34fb"]
-NOT2 = "ff02"
-SERVICE_CHARACTERISTICS_UUIDS = ["0000ffff-0000-1000-8000-00805f9b34fb"]
-TURN_ON_CMD = [
-    bytearray.fromhex("00 04 80 00 00 0d 0e 0b 3b 23 00 00 00 00 00 00 00 32 00 00 90")
-]
-TURN_OFF_CMD = [
-    bytearray.fromhex("00 5b 80 00 00 0d 0e 0b 3b 24 00 00 00 00 00 00 00 32 00 00 91")
-]
-
-INITIAL_PACKET         = bytearray.fromhex("00 01 80 00 00 04 05 0a 81 8a 8b 96")
-
+TURN_ON_CMD    = [bytearray.fromhex("00 04 80 00 00 0d 0e 0b 3b 23 00 00 00 00 00 00 00 32 00 00 90")]
+TURN_OFF_CMD   = [bytearray.fromhex("00 5b 80 00 00 0d 0e 0b 3b 24 00 00 00 00 00 00 00 32 00 00 91")]
+INITIAL_PACKET = bytearray.fromhex("00 01 80 00 00 04 05 0a 81 8a 8b 96")
 MIN_COLOR_TEMPS_K = [2700]
 MAX_COLOR_TEMPS_K = [6500]
-
 DEFAULT_ATTEMPTS = 3
 BLEAK_BACKOFF_TIME = 0.25
-RETRY_BACKOFF_EXCEPTIONS = (BleakDBusError,)
-WrapFuncType = TypeVar("WrapFuncType", bound=Callable[..., Any])
+RETRY_BACKOFF_EXCEPTIONS = (BleakDBusError)
 
+WrapFuncType = TypeVar("WrapFuncType", bound=Callable[..., Any])
 
 def retry_bluetooth_connection_error(func: WrapFuncType) -> WrapFuncType:
     async def _async_wrap_retry_bluetooth_connection_error(
@@ -116,6 +114,11 @@ def retry_bluetooth_connection_error(func: WrapFuncType) -> WrapFuncType:
     return cast(WrapFuncType, _async_wrap_retry_bluetooth_connection_error)
 
 
+def rgb_to_hsv(r,g,b):
+    h, s, v = colorsys.rgb_to_hsv(r/255.0,g/255.0,b/255.0)
+    h, s, v = int(h*360), int(s*100), int(v*100)
+    return [h,s,v]
+
 class LEDNETWFInstance:
     def __init__(self, address, reset: bool, delay: int, hass) -> None:
         self.loop = asyncio.get_running_loop()
@@ -137,10 +140,11 @@ class LEDNETWFInstance:
         self._packet_counter = 0
         self._is_on = None
         self._hs_color = None
-        self._brightness = None
+        self._brightness = 255
         self._effect = None
-        self._effect_speed = None
+        self._effect_speed = 0x64
         self._color_temp_kelvin = None
+        self._color_mode = ColorMode.HS
         self._write_uuid = None
         self._read_uuid = None
         self._turn_on_cmd = None
@@ -148,12 +152,13 @@ class LEDNETWFInstance:
         self._max_color_temp_kelvin = None
         self._min_color_temp_kelvin = None
         self._model = self._detect_model()
+        self._on_update_callbacks = []
+        
         LOGGER.debug(
-            "Model information for device %s : ModelNo %s, Turn on cmd %s, Turn off cmd %s",
+            "Model information for device %s : ModelNo %s. MAC: %s",
             self._device.name,
             self._model,
-            self._turn_on_cmd,
-            self._turn_off_cmd,
+            self._mac,
         )
 
     def _detect_model(self):
@@ -178,8 +183,77 @@ class LEDNETWFInstance:
         await self._write_while_connected(data)
 
     async def _write_while_connected(self, data: bytearray):
-        LOGGER.debug("".join(format(x, " 03x") for x in data))
+        LOGGER.debug(f"Writing data to {self.name}: {data}")
         await self._client.write_gatt_char(self._write_uuid, data, False)
+    
+    def _notification_handler(self, _sender: BleakGATTCharacteristic, data: bytearray) -> None:
+        # Response data is decoded here:  https://github.com/8none1/zengge_lednetwf#response-data
+        #TODO: If nothing has changed, bail out early
+        """Handle BLE notifications from the device.  Update internal state to reflect the device state."""
+        LOGGER.debug("N: %s: Notification received", self.name)
+        response_str = data.decode("utf-8", errors="ignore")
+        last_quote = response_str.rfind('"')
+        if last_quote > 0:
+            first_quote = response_str.rfind('"', 0, last_quote)
+            if first_quote > 0:
+                payload = response_str[first_quote+1:last_quote]
+            else:
+                return None
+        else:
+            return None
+        LOGGER.debug("N: Payload: %s", payload)
+        payload = bytearray.fromhex(payload)
+        power  = payload[2]
+        mode   = payload[3]
+        selected_effect = payload[4]
+        # checksum = payload[13] # TODO: Implement checksum checking?
+
+        if power == 0x23:
+            self._is_on = True
+        elif power == 0x24:
+            self._is_on = False
+
+        if mode == 0x61:
+            if selected_effect == 0xf0:
+                # Light  is in Colour mode 
+                hsv = rgb_to_hsv(payload[6],payload[7],payload[8])
+                self._color_mode = ColorMode.HS
+                self._hs_color = (hsv[0],hsv[1])
+                self._brightness = int(hsv[2] * 255 / 100)
+                self._color_temp_kelvin = None
+                self._effect = None
+                LOGGER.debug(f"N: HS Color mode:")
+                LOGGER.debug(f"N: \t System colour: {self._hs_color}")
+                LOGGER.debug(f"N: \t Brightness: {self._brightness}")
+            if selected_effect == 0x0f:
+                # White mode
+                LOGGER.debug("N: White mode")
+                col_temp = payload[9]
+                color_temp_kelvin = self._min_color_temp_kelvin + col_temp * (self._max_color_temp_kelvin - self._min_color_temp_kelvin) / 100
+                self._color_mode = ColorMode.COLOR_TEMP
+                self._hs_color = None
+                self._effect = None
+                self._color_temp_kelvin = color_temp_kelvin
+                self._brightness = int(payload[5] * 255 / 100)
+                LOGGER.debug(f"N: \t Color Temp kelvin: {self._color_temp_kelvin}")
+                LOGGER.debug(f"N: \t Brightness: {self._brightness}")
+
+        if mode == 0x25:
+            LOGGER.debug("N: Effects mode")
+            try:
+                effect_name = EFFECT_ID_TO_NAME[selected_effect]
+                LOGGER.debug(f"N: \t Effect name: {effect_name}")
+            except KeyError:
+                LOGGER.debug("N: \t Effect name not found")
+                effect_name = "Unknown"
+            self._effect = effect_name
+            self._brightness = int(payload[6] * 255 / 100)
+            self._effect_speed = int(payload[7] * 255 / 100)
+            LOGGER.debug(f"N: \t Brightness (0-255): {self._brightness}")
+            LOGGER.debug(f"N: \t Effect speed: {self._effect_speed}")
+
+        self.local_callback()
+
 
     @property
     def mac(self):
@@ -203,7 +277,7 @@ class LEDNETWFInstance:
 
     @property
     def brightness(self):
-        return self._brightness
+        return self._brightness 
 
     @property
     def min_color_temp_kelvin(self):
@@ -228,88 +302,79 @@ class LEDNETWFInstance:
     @property
     def effect(self):
         return self._effect
+    
+    @property
+    def color_mode(self):
+        return self._color_mode
 
     @retry_bluetooth_connection_error
-    async def set_color_temp_kelvin(self, value: int, brightness: int):
+    async def set_color_temp_kelvin(self, value: int, new_brightness: int):
         # White colours are represented by colour temperature percentage from 0x0 to 0x64 from warm to cool
-        # Warm (0x0) is only the warm white LED, cool (0x64) is only the white LED and then a mixture between the two
-        self._color_temp_kelvin = value
+        # Warm (0x0) is only the warm white LED, cool (0x64) is only the cool white LED and then a mixture between the two
+        if value is None or new_brightness is None:
+            return
         if value < self._min_color_temp_kelvin:
             value = self._min_color_temp_kelvin
         if value > self._max_color_temp_kelvin:
             value = self._max_color_temp_kelvin
+        self._color_temp_kelvin = value
+        brightness_percent = self.normalize_brightness(new_brightness)
+
         color_temp_percent = int(
             ((value - self._min_color_temp_kelvin) * 100)
             / (self._max_color_temp_kelvin - self._min_color_temp_kelvin)
         )
-        if brightness is None:
-            if self._brightness is None:
-                self._brightness = 255
-            brightness = self._brightness
-        brightness_percent = int(brightness * 100 / 255)
+        
         # Color temp packet + brightness
-        await self._write(
-            bytearray.fromhex(
-                "00 10 80 00 00 0d 0e 0b 3b b1 00 00 00 "
-                + str(hex(color_temp_percent)[2:]).rjust(2, "0")
-                + " "
-                + str(hex(brightness_percent)[2:]).rjust(2, "0")
-                + " 00 00 00 00 00 3d"
-            )
-        )
+        color_temp_kelvin_packet = bytearray.fromhex("00 10 80 00 00 0d 0e 0b 3b b1 00 00 00 00 00 00 00 00 00 00 3d")
+        color_temp_kelvin_packet[13] = color_temp_percent
+        color_temp_kelvin_packet[14] = brightness_percent
+        await self._write(color_temp_kelvin_packet)
+        self._color_mode = ColorMode.COLOR_TEMP
+        self._effect = None
 
     @retry_bluetooth_connection_error
-    async def set_hs_color(self, hs: Tuple[int, int], brightness: int):
+    async def set_hs_color(self, hs: Tuple[int, int], new_brightness: int):
         # The device expects basic static colour information in HSV format.
         # The value for the Hue element is divided by two to fit in to a single byte.
         # Saturation and Value are percentages from 0 to 100 (0x64).
         # Value = Brightness
+        LOGGER.debug("Setting HS Color")
+        if hs is None:
+            LOGGER.debug("HS is None")
+            return
+        else:
+            LOGGER.debug(f"HS is {hs}")
+
+        self._color_mode = ColorMode.HS
         self._hs_color = hs
+        self._effect = None
+        self._color_temp_kelvin = None
         hue = int(hs[0] / 2)
         saturation = int(hs[1])
-        if brightness is None:
-            if self._brightness is None:
-                self._brightness = 255
-            brightness = self._brightness
-        brightness_percent = int(brightness * 100 / 255)
-        # HSV packet
-        self._effect = None
-        await self._write(
-            bytearray.fromhex(
-                "00 05 80 00 00 0d 0e 0b 3b a1 "
-                + str(hex(hue)[2:]).rjust(2, "0")
-                + " "
-                + str(hex(saturation)[2:]).rjust(2, "0")
-                + " "
-                + str(hex(brightness_percent)[2:]).rjust(2, "0")
-                + " 00 00 00 00 00 00 00 3d"
-            )
-        )
+        brightness_percent = self.normalize_brightness(new_brightness)
+        color_hs_packet = bytearray.fromhex("00 00 80 00 00 0d 0e 0b 3b a1 00 64 64 00 00 00 00 00 00 00 00")
+        color_hs_packet[10] = hue
+        color_hs_packet[11] = saturation
+        color_hs_packet[12] = brightness_percent
+        await self._write(color_hs_packet)
+
 
     @retry_bluetooth_connection_error
-    async def set_effect(self, effect: str, brightness: int):
+    async def set_effect(self, effect: str, new_brightness: int):
         if effect not in EFFECT_LIST:
             LOGGER.error("Effect %s not supported", effect)
             return
         self._effect = effect
+        #self._color_mode = None # I think changing this to None is messing up the brightness in the front end
+        effect_packet = bytearray.fromhex("00 06 80 00 00 04 05 0b 38 01 32 64")
         effect_id = EFFECT_MAP.get(effect)
-        effect_packet = EFFECT_CMD
         effect_packet[9] = effect_id
-        # effect_packet[10] = self._effect_speed # TODO: Support variable speeds.  For now, hard coded to 50% in the packet declaration
-        if self._brightness is None:
-            # If no brightness has been set, set it to 100%
-            self._brightness = 255
-        effect_packet[11] = int(self._brightness * 100 / 255)
+        effect_packet[10] = self._effect_speed # TODO: Support variable speeds. FLASH should allow us to switch between "fast" and "slow", but I can't work it out
+        effect_packet[11] = self.normalize_brightness(new_brightness)
+        LOGGER.debug(f"Brightness passed in to set_effect is {new_brightness}")
+        LOGGER.debug(f"After calling Normalized brightness is: {self._brightness}")
         await self._write(effect_packet)
-
-    async def set_brightness_local(self, value: int):
-        if value is None:
-            return
-        if value < 0:
-            value = 0
-        if value > 255:
-            value = 255
-        self._brightness = value
 
     @retry_bluetooth_connection_error
     async def turn_on(self):
@@ -323,16 +388,18 @@ class LEDNETWFInstance:
 
     @retry_bluetooth_connection_error
     async def update(self):
+        LOGGER.debug("%s: Update in lwdnetwf called", self.name)
         try:
             await self._ensure_connected()
-            if self._is_on is None:
-                self._is_on = False
-                self._hs_color = (0, 0)
-                self._color_temp_kelvin = 5000
-                self._brightness = 255
-
-        except Exception as error:
             self._is_on = False
+            await asyncio.sleep(3) # TODO: Find a better way!
+            # What I'm trying to achieve here is to wait for the device to send a notification
+            # so that the status is updated correctly.  If nothing gets returned within a few
+            # seconds, assume the device is unavailable.  This might not be a safe assumption.
+            # It does mean however, that if the device is available and working, then everything
+            # in the frontend is correct.  I don't know if this is worth it though.
+        except Exception as error:
+            self._is_on = None # failed to connect, this should mark it as unavailable
             LOGGER.error("Error getting status: %s", error)
             track = traceback.format_exc()
             LOGGER.debug(track)
@@ -372,18 +439,13 @@ class LEDNETWFInstance:
             self._reset_disconnect_timer()
 
             # Subscribe to notification is needed for LEDnetWF devices to accept commands
-            LOGGER.debug("%s: Subscribe to notifications", self.name)
-            await client.start_notify(self._read_uuid, self._notification_handler)
+            self._notification_callback = self._notification_handler
+            await client.start_notify(self._read_uuid, self._notification_callback)
+            LOGGER.debug("%s: Subscribed to notifications", self.name)
             
             # Send initial packets to device to see if it sends notifications
             LOGGER.debug("%s: Send initial packets", self.name)
             await self._write_while_connected(INITIAL_PACKET)
-
-
-    def _notification_handler(self, _sender: BleakGATTCharacteristic, data: bytearray) -> None:
-        """Handle notification responses."""
-        LOGGER.debug("%s: Notification received", self.name, data.hex())
-        return
 
     def _resolve_characteristics(self, services: BleakGATTServiceCollection) -> bool:
         """Resolve characteristics."""
@@ -407,7 +469,7 @@ class LEDNETWFInstance:
             LOGGER.debug(
                 "%s: Configured disconnect from device in %s seconds",
                 self.name,
-                self._delay,
+                self._delay
             )
             self._disconnect_timer = self.loop.call_later(self._delay, self._disconnect)
 
@@ -433,7 +495,7 @@ class LEDNETWFInstance:
         LOGGER.debug(
             "%s: Disconnecting after timeout of %s",
             self.name,
-            self._delay,
+            self._delay
         )
         await self._execute_disconnect()
 
@@ -449,3 +511,27 @@ class LEDNETWFInstance:
             if client and client.is_connected:
                 await client.stop_notify(read_char) #  TODO:  I don't think this is needed.  Bleak docs say it isnt.
                 await client.disconnect()
+    
+    def local_callback(self):
+        # Placeholder to be replaced by a call from light.py
+        # I can't work out how to plumb a callback from here to light.py
+        return
+
+    def normalize_brightness(self, new_brightness):
+        "Make sure brightness is between 2 and 255 and then convert to percentage"
+        LOGGER.debug("Doing Normalizing brightness function")
+        LOGGER.debug("New brightness passed IN is %s", new_brightness)
+        if new_brightness is None and self._brightness is None:
+            new_brightness = 255
+        elif new_brightness is None and self._brightness > 1:
+            new_brightness = self._brightness
+        if new_brightness < 2:
+            new_brightness = 2
+        if new_brightness > 255:
+            new_brightness = 255
+        LOGGER.debug("New brightness (0-255) is %s", new_brightness)
+        self._brightness = new_brightness
+        new_percentage = int(new_brightness * 100 / 255)
+        LOGGER.debug("Normalized brightness percent is %s", new_percentage)
+        return new_percentage
+    
