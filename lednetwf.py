@@ -46,7 +46,7 @@ MIN_COLOR_TEMPS_K = [2700]
 MAX_COLOR_TEMPS_K = [6500]
 DEFAULT_ATTEMPTS = 3
 BLEAK_BACKOFF_TIME = 0.25
-RETRY_BACKOFF_EXCEPTIONS = (BleakDBusError,)
+RETRY_BACKOFF_EXCEPTIONS = (BleakDBusError)
 
 WrapFuncType = TypeVar("WrapFuncType", bound=Callable[..., Any])
 
@@ -469,7 +469,7 @@ class LEDNETWFInstance:
             LOGGER.debug(
                 "%s: Configured disconnect from device in %s seconds",
                 self.name,
-                self._delay,
+                self._delay
             )
             self._disconnect_timer = self.loop.call_later(self._delay, self._disconnect)
 
@@ -495,7 +495,7 @@ class LEDNETWFInstance:
         LOGGER.debug(
             "%s: Disconnecting after timeout of %s",
             self.name,
-            self._delay,
+            self._delay
         )
         await self._execute_disconnect()
 
