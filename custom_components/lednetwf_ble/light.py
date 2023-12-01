@@ -37,7 +37,7 @@ async def async_setup_entry(hass, config_entry, async_add_devices):
     async_add_devices(
         [LEDNETWFLight(instance, config_entry.data["name"], config_entry.entry_id)]
     )
-    config_entry.async_on_unload(await instance.stop())
+    #config_entry.async_on_unload(await instance.stop())
 
 
 class LEDNETWFLight(LightEntity):
