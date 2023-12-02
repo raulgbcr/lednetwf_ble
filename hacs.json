@@ -1,0 +1,9 @@
+{
+    "name": "LEDnetWF BLE",
+    "content_in_root": false,
+    "zip_release": true,
+    "filename": "lednetwf.zip",
+    "render_readme": true,
+    "homeassistant": "2023.11.3",
+    "hacs": "1.33.0"   
+}
