@@ -392,7 +392,7 @@ class LEDNETWFInstance:
         try:
             await self._ensure_connected()
             self._is_on = False
-            await asyncio.sleep(3) # TODO: Find a better way!
+            #await asyncio.sleep(1) # TODO: Find a better way!
             # What I'm trying to achieve here is to wait for the device to send a notification
             # so that the status is updated correctly.  If nothing gets returned within a few
             # seconds, assume the device is unavailable.  This might not be a safe assumption.
@@ -511,6 +511,7 @@ class LEDNETWFInstance:
             if client and client.is_connected:
                 await client.stop_notify(read_char) #  TODO:  I don't think this is needed.  Bleak docs say it isnt.
                 await client.disconnect()
+            LOGGER.debug("%s: Disconnected", self.name)
     
     def local_callback(self):
         # Placeholder to be replaced by a call from light.py
