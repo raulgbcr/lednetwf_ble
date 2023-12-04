@@ -1,16 +1,26 @@
 {
-  "domain": "lednetwf_ble",
-  "name": "LEDnetWF BLE",
-  "bluetooth": [
-      { "local_name": "LEDnetWF*" }
-    ],
-  "codeowners": ["@raulgbcr", "@8none1"],
-  "config_flow": true,
-  "dependencies": ["bluetooth"],
-  "documentation": "https://github.com/raulgbcr/lednetwf_ble",
-  "iot_class": "local_polling",
-  "issue_tracker": "https://github.com/raulgbcr/lednetwf_ble/issues",
-  "requirements": ["bleak-retry-connector>=1.17.1","bleak>=0.17.0"],
-  "version": "0.0.5",
-  "integration_type": "device"
+	"domain": "lednetwf_ble",
+	"name": "LEDnetWF BLE",
+	"bluetooth": [
+		{
+			"local_name": "LEDnetWF*"
+		}
+	],
+	"codeowners": [
+		"@raulgbcr",
+		"@8none1"
+	],
+	"config_flow": true,
+	"dependencies": [
+		"bluetooth"
+	],
+	"documentation": "https://github.com/raulgbcr/lednetwf_ble",
+	"integration_type": "device",
+	"iot_class": "local_polling",
+	"issue_tracker": "https://github.com/raulgbcr/lednetwf_ble/issues",
+	"requirements": [
+		"bleak-retry-connector>=1.17.1",
+		"bleak>=0.17.0"
+	],
+	"version": "0.0.5"
 }
