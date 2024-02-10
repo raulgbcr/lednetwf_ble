@@ -41,8 +41,8 @@ After setting up, you can config two parameters Settings -> Integrations -> LEDn
 
 This integration is possible thanks to the work of this incredible people!
 
-https://github.com/8none1/zengge_lednetwf for reverse engineering and decoding the protocol used by the BLE controller!
-https://github.com/dave-code-ruiz/elkbledom for most of the base code adapted to this integration.
-https://openclipart.org/detail/185270/light-bulb-icon for the original icon.
+- https://github.com/8none1/zengge_lednetwf for reverse engineering and decoding the protocol used by the BLE controller!
+- https://github.com/dave-code-ruiz/elkbledom for most of the base code adapted to this integration.
+- https://openclipart.org/detail/185270/light-bulb-icon for the original icon.
 
 Thanks!
