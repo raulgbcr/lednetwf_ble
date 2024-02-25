@@ -16,6 +16,7 @@ from homeassistant.components.light import (
     ATTR_MIN_COLOR_TEMP_KELVIN,
     ATTR_MAX_COLOR_TEMP_KELVIN,
     ATTR_EFFECT,
+    EFFECT_OFF,
     ATTR_HS_COLOR,
     ATTR_FLASH,
     FLASH_SHORT,
@@ -46,7 +47,7 @@ class LEDNETWFLight(LightEntity):
     ) -> None:
         self._instance = lednetwfinstance
         self._entry_id = entry_id
-        self._attr_supported_color_modes = {ColorMode.COLOR_TEMP, ColorMode.HS}
+        self._attr_supported_color_modes = {ColorMode.BRIGHTNESS, ColorMode.COLOR_TEMP, ColorMode.HS}
         self._attr_supported_features = LightEntityFeature.EFFECT | LightEntityFeature.FLASH
         self._attr_brightness_step_pct = 10
         self._attr_name = name
@@ -141,10 +142,14 @@ class LEDNETWFLight(LightEntity):
 
         if ATTR_COLOR_TEMP_KELVIN not in kwargs and ATTR_HS_COLOR not in kwargs and ATTR_EFFECT not in kwargs:
             # i.e. only a brightness change
-            if self._instance._effect is not None:
+            if self._instance._effect is not None and self._instance._effect is not EFFECT_OFF:
+                # Before HA 2024.2
+
                 # effect check go first because of the way HA handles brightness changes
                 # if there is no color mode set, the brightness slider in the UI gets disabled
                 # so we bodge it by keep the color mode set while adjusting the effect brightness.
+
+                #HA 2024.2 changes this, setting color mode to "brightness" should allow to change effects brightness as well as introduces the predefined EFFECT_OFF status
                 kwargs[ATTR_EFFECT] = self._instance.effect
             elif self._instance._color_mode is ColorMode.COLOR_TEMP:
                 kwargs[ATTR_COLOR_TEMP_KELVIN] = self._instance.color_temp_kelvin
@@ -186,7 +191,7 @@ class LEDNETWFLight(LightEntity):
     def update_ha_state(self) -> None:
         LOGGER.debug("update_ha_state called")
         if self.hs_color is None and self.color_temp_kelvin is None:
-            self._color_mode = None
+            self._color_mode = ColorMode.BRIGHTNESS #2024.2 We can use brightness color mode so even when we don't know the state of the light the brightness can be controlled 
         elif self.hs_color is not None:
             self._color_mode = ColorMode.HS
         elif self.color_temp_kelvin is not None:

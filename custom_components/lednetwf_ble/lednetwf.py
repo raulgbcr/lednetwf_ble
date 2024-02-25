@@ -26,9 +26,8 @@ import traceback
 import logging
 import colorsys
 
-
-# Add effects information in a separate file because there is a LOT of boilerplate.
-from .effects import (
+from .const import (
+    EFFECT_OFF_HA,
     EFFECT_MAP,
     EFFECT_LIST,
     EFFECT_ID_TO_NAME
@@ -141,7 +140,7 @@ class LEDNETWFInstance:
         self._is_on = None
         self._hs_color = None
         self._brightness = 255
-        self._effect = None
+        self._effect = EFFECT_OFF_HA # 2024.2 this indicates HA that we support effects and they are currently off
         self._effect_speed = 0x64
         self._color_temp_kelvin = None
         self._color_mode = ColorMode.HS
@@ -221,7 +220,7 @@ class LEDNETWFInstance:
                 self._hs_color = (hsv[0],hsv[1])
                 self._brightness = int(hsv[2] * 255 / 100)
                 self._color_temp_kelvin = None
-                self._effect = None
+                self._effect = EFFECT_OFF_HA
                 LOGGER.debug(f"N: HS Color mode:")
                 LOGGER.debug(f"N: \t System colour: {self._hs_color}")
                 LOGGER.debug(f"N: \t Brightness: {self._brightness}")
@@ -232,7 +231,7 @@ class LEDNETWFInstance:
                 color_temp_kelvin = self._min_color_temp_kelvin + col_temp * (self._max_color_temp_kelvin - self._min_color_temp_kelvin) / 100
                 self._color_mode = ColorMode.COLOR_TEMP
                 self._hs_color = None
-                self._effect = None
+                self._effect = EFFECT_OFF_HA
                 self._color_temp_kelvin = color_temp_kelvin
                 self._brightness = int(payload[5] * 255 / 100)
                 LOGGER.debug(f"N: \t Color Temp kelvin: {self._color_temp_kelvin}")
@@ -247,6 +246,9 @@ class LEDNETWFInstance:
                 LOGGER.debug("N: \t Effect name not found")
                 effect_name = "Unknown"
             self._effect = effect_name
+
+            self._color_mode = ColorMode.BRIGHTNESS # 2024.2 Allows setting color mode for changing effects brightness
+
             self._brightness = int(payload[6] * 255 / 100)
             self._effect_speed = int(payload[7] * 255 / 100)
             LOGGER.debug(f"N: \t Brightness (0-255): {self._brightness}")
@@ -331,7 +333,7 @@ class LEDNETWFInstance:
         color_temp_kelvin_packet[14] = brightness_percent
         await self._write(color_temp_kelvin_packet)
         self._color_mode = ColorMode.COLOR_TEMP
-        self._effect = None
+        self._effect = EFFECT_OFF_HA
 
     @retry_bluetooth_connection_error
     async def set_hs_color(self, hs: Tuple[int, int], new_brightness: int):
@@ -348,7 +350,7 @@ class LEDNETWFInstance:
 
         self._color_mode = ColorMode.HS
         self._hs_color = hs
-        self._effect = None
+        self._effect = EFFECT_OFF_HA
         self._color_temp_kelvin = None
         hue = int(hs[0] / 2)
         saturation = int(hs[1])
@@ -362,11 +364,13 @@ class LEDNETWFInstance:
 
     @retry_bluetooth_connection_error
     async def set_effect(self, effect: str, new_brightness: int):
-        if effect not in EFFECT_LIST:
-            LOGGER.error("Effect %s not supported", effect)
+        if effect not in EFFECT_LIST or effect is EFFECT_OFF_HA:
+            LOGGER.error("Effect %s not supported or effect off called", effect)
             return
         self._effect = effect
-        #self._color_mode = None # I think changing this to None is messing up the brightness in the front end
+
+        self._color_mode = ColorMode.BRIGHTNESS # 2024.2 Allows setting color mode for changing effects brightness
+
         effect_packet = bytearray.fromhex("00 06 80 00 00 04 05 0b 38 01 32 64")
         effect_id = EFFECT_MAP.get(effect)
         effect_packet[9] = effect_id
