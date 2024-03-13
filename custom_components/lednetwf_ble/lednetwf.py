@@ -251,6 +251,9 @@ class LEDNETWFInstance:
 
             self._brightness = int(payload[6] * 255 / 100)
             self._effect_speed = int(payload[7] * 255 / 100)
+            if not 0 <= self._effect_speed <= 255:
+              self._effect_speed = 128
+            
             LOGGER.debug(f"N: \t Brightness (0-255): {self._brightness}")
             LOGGER.debug(f"N: \t Effect speed: {self._effect_speed}")
 
