@@ -29,7 +29,6 @@ class DeviceData(BluetoothData):
     def __init__(self, discovery_info) -> None:
         self._discovery = discovery_info
         LOGGER.debug("Discovered bluetooth devices, DeviceData, : %s , %s", self._discovery.address, self._discovery.name)
-        LOGGER.debug(dir(self._discovery))
 
     def supported(self):
         return self._discovery.name.lower().startswith("lednetwf")
@@ -94,8 +93,15 @@ class LEDNETWFFlowHandler(config_entries.ConfigFlow, domain=DOMAIN):
 #            if user_input[CONF_MAC] == MANUAL_MAC:
 #                return await self.async_step_manual()
             self.mac = user_input[CONF_MAC]
-            # self.name = user_input["name"]
-            self.name = self.context["title_placeholders"]["name"]
+            if "title_placeholders" in self.context:
+                self.name = self.context["title_placeholders"]["name"]
+            if 'source' in self.context.keys() and self.context['source'] == "user":
+                LOGGER.debug(f"User context.  discovered devices: {self._discovered_devices}")
+                for each in self._discovered_devices:
+                  LOGGER.debug(f"Address: {each.address()}")
+                  if each.address() == self.mac:
+                    self.name = each.get_device_name()
+            if self.name is None: self.name = self.mac
             await self.async_set_unique_id(self.mac, raise_on_progress=False)
             self._abort_if_unique_id_configured()
             return await self.async_step_validate()
