@@ -31,6 +31,17 @@ You need to have the bluetooth component configured and working in Home Assistan
 
 Clone this repository into `config/` Home Assistant folder.
 
+### HACS
+
+- Navigate to HACS from the side bar in Home Assistant
+- Click "Integrations"
+- Click the three dots in the top right corner
+- Click Custom Repositories
+- Paste [Github URL](https://github.com/raulgbcr/lednetwf_ble) to this repo in to the Repository box
+- Choose Integration from the Category
+- Click Add
+- You may need to restart Home Assistant
+
 ### Config
 
 After setting up, you can config two parameters Settings -> Integrations -> LEDnetWF -> Config.
