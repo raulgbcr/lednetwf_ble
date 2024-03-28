@@ -2,7 +2,6 @@ from enum import Enum
 from homeassistant.components.light import EFFECT_OFF
 
 DOMAIN = "lednetwf_ble"
-CONF_RESET = "reset"
 CONF_DELAY = "delay"
 
 EFFECT_OFF_HA = EFFECT_OFF

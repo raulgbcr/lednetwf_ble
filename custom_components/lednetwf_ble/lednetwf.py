@@ -2,11 +2,6 @@ import asyncio
 from datetime import datetime
 from homeassistant.components import bluetooth
 from homeassistant.exceptions import ConfigEntryNotReady
-# from homeassistant.helpers.update_coordinator import (
-#     CoordinatorEntity,
-#     DataUpdateCoordinator,
-# )
-
 from homeassistant.components.light import (ColorMode)
 
 from bleak.backends.device import BLEDevice
@@ -119,10 +114,10 @@ def rgb_to_hsv(r,g,b):
     return [h,s,v]
 
 class LEDNETWFInstance:
-    def __init__(self, address, reset: bool, delay: int, hass) -> None:
+    def __init__(self, address, delay: int, hass) -> None:
         self.loop = asyncio.get_running_loop()
         self._mac = address
-        self._reset = reset
+        # self._reset = reset
         self._delay = delay
         self._hass = hass
         self._device: BLEDevice | None = None
@@ -264,9 +259,9 @@ class LEDNETWFInstance:
     def mac(self):
         return self._device.address
 
-    @property
-    def reset(self):
-        return self._reset
+    # @property
+    # def reset(self):
+    #     return self._reset
 
     @property
     def name(self):
