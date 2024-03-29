@@ -179,7 +179,7 @@ class LEDNETWFFlowHandler(config_entries.ConfigFlow, domain=DOMAIN):
 
     async def toggle_light(self):
         if not self._instance:
-            self._instance = LEDNETWFInstance(self.mac, False, 120, self.hass)
+            self._instance = LEDNETWFInstance(self.mac, 120, self.hass)
         try:
             await self._instance.update()
             if self._instance.is_on:
