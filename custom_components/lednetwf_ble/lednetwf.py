@@ -175,12 +175,12 @@ class LEDNETWFInstance:
         self._brightness = int(hsv[2] * 255 / 100)
         self._fw_major = manu_data_data[0]
         self._fw_minor = f'{manu_data_data[8]:02X}{manu_data_data[9]:02X}.{manu_data_data[10]:02X}'
-        LOGGER.debug(f"DM:\t\t LED count: {self._led_count}")
-        LOGGER.debug(f"DM:\t\t Is on: {self._is_on}")
-        LOGGER.debug(f"DM:\t\t HS Color: {self._hs_color}")
+        LOGGER.debug(f"DM:\t\t LED count:  {self._led_count}")
+        LOGGER.debug(f"DM:\t\t Is on:      {self._is_on}")
+        LOGGER.debug(f"DM:\t\t HS Color:   {self._hs_color}")
         LOGGER.debug(f"DM:\t\t Brightness: {self._brightness}")
-        LOGGER.debug(f"DM:\t\t FW Major: {self._fw_major}")
-        LOGGER.debug(f"DM:\t\t FW Minor: {self._fw_minor}")
+        LOGGER.debug(f"DM:\t\t FW Major:   {self._fw_major}")
+        LOGGER.debug(f"DM:\t\t FW Minor:   {self._fw_minor}")
         return self._fw_major # Is this the best way to differentiate between models?
 
     async def _write(self, data: bytearray):
@@ -215,8 +215,8 @@ class LEDNETWFInstance:
         LOGGER.debug("N: Payload: %s", payload)
         payload = bytearray.fromhex(payload)
         if payload[0] == 0x81:
-            # Response to INITIAL_PACKET?  Status response? TODO: Look up 0x81 (129d) in jadx
-            LOGGER.debug("N: Initial packet response")   
+            # Status update response. TODO: Look up 0x81 (129d) in jadx
+            LOGGER.debug("N: Status response received")   
             sending_model = payload[1]
             power  = payload[2]
             mode   = payload[3]
@@ -274,10 +274,29 @@ class LEDNETWFInstance:
                 LOGGER.debug(f"N: \t Effect speed: {self._effect_speed}")
         
         if payload[0] == 0x00 and payload[1] == 0x63 and len(payload) == 11:
+            # Strip device settings response
             LOGGER.debug("N: LED settings packet: Strip device")
+            led_count = bytes([payload[2], payload[3]])
+            led_count = int.from_bytes(led_count, byteorder='big') * payload[5] # was little
+            LOGGER.debug(f"N: \t Number of segments: {payload[5]}")
+            LOGGER.debug(f"N: \t LED count: {led_count}")
+            chip_type = payload[5]
+            colour_order = payload[6]
+            LOGGER.debug(f"N: \t Chip type: {chip_type}")
+            LOGGER.debug(f"N: \t Colour order: {colour_order}")
+            self._led_count = led_count
+            self._chip_type = chip_type
+            self._color_order = colour_order
         
         if payload[0] == 0x63 and len(payload) == 6:
             LOGGER.debug("N: LED settings packet: Ring device")
+            led_count = payload[2]
+            chip_type = payload[3]
+            colour_order = payload[4]
+            LOGGER.debug(f"N: \t LED count: {led_count}")
+            LOGGER.debug(f"N: \t Chip type: {chip_type}")
+            LOGGER.debug(f"N: \t Colour order: {colour_order}")
+
         
         self.local_callback()
 
@@ -334,6 +353,14 @@ class LEDNETWFInstance:
     def color_mode(self):
         return self._color_mode
 
+    @retry_bluetooth_connection_error
+    async def set_led_count(self, led_count: int):
+        if led_count is None:
+            return
+        if led_count < 0:
+            led_count = 0
+        LOGGER.debug(f"Setting LED count to {led_count}")
+    
     @retry_bluetooth_connection_error
     async def set_color_temp_kelvin(self, value: int, new_brightness: int):
         # White colours are represented by colour temperature percentage from 0x0 to 0x64 from warm to cool

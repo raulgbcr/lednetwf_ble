@@ -1,9 +1,12 @@
 from enum import Enum
 from homeassistant.components.light import EFFECT_OFF
 
-DOMAIN = "lednetwf_ble"
-CONF_RESET = "reset"
-CONF_DELAY = "delay"
+DOMAIN            = "lednetwf_ble"
+CONF_RESET        = "reset"
+CONF_DELAY        = "delay"
+CONF_LEDCOUNT     = "ledcount"
+CONF_LEDTYPE      = "ledtype"
+CONF_COLORORDER   = "colororder"
 RING_LIGHT_MODEL  = 0x53
 STRIP_LIGHT_MODEL = 0x56
 

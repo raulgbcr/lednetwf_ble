@@ -36,10 +36,25 @@
             "user": {
                 "data": {
                     "reset": "Reset color when led turn on",
-                    "delay": "Disconnect delay (0 equal never disconnect)"
+                    "delay": "Disconnect delay (0 = never disconnect)",
+                    "ledcount": "Number of LEDs",
+                    "name": "Name",
+                    "ledtype": "LED type",
+                    "colororder": "Color order"
                 }
-            }
+            },
+            "init" : {
+                "data": {
+                    "reset": "Reset color when led turn on",
+                    "delay": "Disconnect delay (0 equal never disconnect)",
+                    "ledcount": "Number of LEDs",
+                    "name": "Name",
+                    "ledtype": "LED type",
+                    "colororder": "Color order"                    
+                }
+            },
+            "title": "LEDnetWF"
         }
-    },
-    "title": "LEDnetWF"
+
+    }
 }
