@@ -3,7 +3,7 @@ import voluptuous as vol
 from typing import Any, Optional, Tuple
 
 from .lednetwf import LEDNETWFInstance
-from .const import DOMAIN
+from .const import (DOMAIN, RING_LIGHT_MODEL, STRIP_LIGHT_MODEL)
 
 from homeassistant.const import CONF_MAC
 import homeassistant.helpers.config_validation as cv
@@ -47,8 +47,12 @@ class LEDNETWFLight(LightEntity):
     ) -> None:
         self._instance = lednetwfinstance
         self._entry_id = entry_id
-        self._attr_supported_color_modes = {ColorMode.BRIGHTNESS, ColorMode.COLOR_TEMP, ColorMode.HS}
-        self._attr_supported_features = LightEntityFeature.EFFECT | LightEntityFeature.FLASH
+        if self._instance._model == RING_LIGHT_MODEL:
+            self._attr_supported_color_modes = {ColorMode.BRIGHTNESS, ColorMode.COLOR_TEMP, ColorMode.HS}
+        else:
+            self._attr_supported_color_modes = {ColorMode.BRIGHTNESS, ColorMode.HS}
+        #self._attr_supported_color_modes = {ColorMode.BRIGHTNESS, ColorMode.COLOR_TEMP, ColorMode.HS}
+        self._attr_supported_features = LightEntityFeature.EFFECT
         self._attr_brightness_step_pct = 10
         self._attr_name = name
         self._attr_unique_id = self._instance.mac

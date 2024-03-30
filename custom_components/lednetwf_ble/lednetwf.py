@@ -2,11 +2,6 @@ import asyncio
 from datetime import datetime
 from homeassistant.components import bluetooth
 from homeassistant.exceptions import ConfigEntryNotReady
-# from homeassistant.helpers.update_coordinator import (
-#     CoordinatorEntity,
-#     DataUpdateCoordinator,
-# )
-
 from homeassistant.components.light import (ColorMode)
 
 from bleak.backends.device import BLEDevice
@@ -30,22 +25,22 @@ from .const import (
     EFFECT_OFF_HA,
     EFFECT_MAP,
     EFFECT_LIST,
-    EFFECT_ID_TO_NAME
+    EFFECT_ID_TO_NAME,
+    RING_LIGHT_MODEL,
+    STRIP_LIGHT_MODEL
 )
 
 LOGGER = logging.getLogger(__name__)
 
-NAME_ARRAY = ["LEDnetWF"]
+NAME_ARRAY                    = ["LEDnetWF"]
+SUPPORTED_MODELS              = [0x53, 0x56] # [Ring light with CW/WW, Strip light with RGB only]
 WRITE_CHARACTERISTIC_UUIDS    = ["0000ff01-0000-1000-8000-00805f9b34fb"]
 NOTIFY_CHARACTERISTIC_UUIDS   = ["0000ff02-0000-1000-8000-00805f9b34fb"]
-TURN_ON_CMD    = [bytearray.fromhex("00 04 80 00 00 0d 0e 0b 3b 23 00 00 00 00 00 00 00 32 00 00 90")]
-TURN_OFF_CMD   = [bytearray.fromhex("00 5b 80 00 00 0d 0e 0b 3b 24 00 00 00 00 00 00 00 32 00 00 91")]
-INITIAL_PACKET = bytearray.fromhex("00 01 80 00 00 04 05 0a 81 8a 8b 96")
-MIN_COLOR_TEMPS_K = [2700]
-MAX_COLOR_TEMPS_K = [6500]
-DEFAULT_ATTEMPTS = 3
-BLEAK_BACKOFF_TIME = 0.25
-RETRY_BACKOFF_EXCEPTIONS = (BleakDBusError)
+INITIAL_PACKET                = bytearray.fromhex("00 01 80 00 00 04 05 0a 81 8a 8b 96")
+GET_LED_SETTINGS_PACKET       = bytearray.fromhex("00 02 80 00 00 05 06 0a 63 12 21 f0 86")
+DEFAULT_ATTEMPTS              = 3
+BLEAK_BACKOFF_TIME            = 0.25
+RETRY_BACKOFF_EXCEPTIONS      = (BleakDBusError)
 
 WrapFuncType = TypeVar("WrapFuncType", bound=Callable[..., Any])
 
@@ -119,14 +114,15 @@ def rgb_to_hsv(r,g,b):
     return [h,s,v]
 
 class LEDNETWFInstance:
-    def __init__(self, address, reset: bool, delay: int, hass) -> None:
+    def __init__(self, address, reset: None, delay: int, hass) -> None:
         self.loop = asyncio.get_running_loop()
         self._mac = address
-        self._reset = reset
         self._delay = delay
         self._hass = hass
         self._device: BLEDevice | None = None
         self._device = bluetooth.async_ble_device_from_address(self._hass, address)
+        service_info = bluetooth.async_last_service_info(self._hass, address).as_dict()
+        manu_data = service_info['manufacturer_data']
         if not self._device:
             raise ConfigEntryNotReady(
                 f"You need to add bluetooth integration (https://www.home-assistant.io/integrations/bluetooth) or couldn't find a nearby device with address: {address}"
@@ -143,14 +139,15 @@ class LEDNETWFInstance:
         self._effect = EFFECT_OFF_HA # 2024.2 this indicates HA that we support effects and they are currently off
         self._effect_speed = 0x64
         self._color_temp_kelvin = None
+        self._max_color_temp_kelvin = 6500
+        self._min_color_temp_kelvin = 2700
         self._color_mode = ColorMode.HS
         self._write_uuid = None
         self._read_uuid = None
-        self._turn_on_cmd = None
-        self._turn_off_cmd = None
-        self._max_color_temp_kelvin = None
-        self._min_color_temp_kelvin = None
-        self._model = self._detect_model()
+        self._led_count = None
+        self._color_order = None
+        self._chip_type = None
+        self._model = self._detect_model(manu_data)
         self._on_update_callbacks = []
         
         LOGGER.debug(
@@ -160,16 +157,31 @@ class LEDNETWFInstance:
             self._mac,
         )
 
-    def _detect_model(self):
-        x = 0
-        for name in NAME_ARRAY:
-            if self._device.name.lower().startswith(name.lower()):
-                self._turn_on_cmd = TURN_ON_CMD[x]
-                self._turn_off_cmd = TURN_OFF_CMD[x]
-                self._max_color_temp_kelvin = MAX_COLOR_TEMPS_K[x]
-                self._min_color_temp_kelvin = MIN_COLOR_TEMPS_K[x]
-                return x
-            x = x + 1
+    def _detect_model(self, manu_data):
+        manu_data_id = next(iter(manu_data))
+        manu_data_data = bytearray(manu_data[manu_data_id])
+        formatted = [f'0x{byte:02X}' for byte in manu_data_data]
+        formatted_str = ' '.join(formatted)
+        LOGGER.debug(f"\t\t Manufacturer id: {manu_data_id}")
+        LOGGER.debug(f"\t\t Manu data: {formatted_str}")
+        # Example manu data:
+        # 0    1    2    3    4    5    6    7    8    9    10   11   12   13   14   15   16   17   18   19   20   21   22   23   24   25   26
+        # 0x53 0x05 0x08 0x65 0xF0 0x0C 0xDA 0x81 0x00 0x1D 0x0F 0x02 0x01 0x01 0x24 0x61 0xF0 0x00 0xFC 0x00 0x00 0x00 0x02 0x00 0x1C 0x00 0x00
+        self._led_count = manu_data_data[24]
+        self._is_on = manu_data_data[14] == 0x23
+        r,g,b = manu_data_data[18], manu_data_data[19], manu_data_data[20]
+        hsv = rgb_to_hsv(r,g,b)
+        self._hs_color = (hsv[0],hsv[1])
+        self._brightness = int(hsv[2] * 255 / 100)
+        self._fw_major = manu_data_data[0]
+        self._fw_minor = f'{manu_data_data[8]:02X}{manu_data_data[9]:02X}.{manu_data_data[10]:02X}'
+        LOGGER.debug(f"DM:\t\t LED count: {self._led_count}")
+        LOGGER.debug(f"DM:\t\t Is on: {self._is_on}")
+        LOGGER.debug(f"DM:\t\t HS Color: {self._hs_color}")
+        LOGGER.debug(f"DM:\t\t Brightness: {self._brightness}")
+        LOGGER.debug(f"DM:\t\t FW Major: {self._fw_major}")
+        LOGGER.debug(f"DM:\t\t FW Minor: {self._fw_minor}")
+        return self._fw_major # Is this the best way to differentiate between models?
 
     async def _write(self, data: bytearray):
         """Send command to device and read response."""
@@ -202,61 +214,71 @@ class LEDNETWFInstance:
             return None
         LOGGER.debug("N: Payload: %s", payload)
         payload = bytearray.fromhex(payload)
-        power  = payload[2]
-        mode   = payload[3]
-        selected_effect = payload[4]
-        # checksum = payload[13] # TODO: Implement checksum checking?
+        if payload[0] == 0x81:
+            # Response to INITIAL_PACKET?  Status response? TODO: Look up 0x81 (129d) in jadx
+            LOGGER.debug("N: Initial packet response")   
+            sending_model = payload[1]
+            power  = payload[2]
+            mode   = payload[3]
+            selected_effect = payload[4]
+            led_count = payload[12]
+            LOGGER.debug(f"N: \t LED count: {led_count}")
+            # checksum = payload[13] # TODO: Implement checksum checking?
 
-        if power == 0x23:
-            self._is_on = True
-        elif power == 0x24:
-            self._is_on = False
+            if power == 0x23:
+                self._is_on = True
+            elif power == 0x24:
+                self._is_on = False
 
-        if mode == 0x61:
-            if selected_effect == 0xf0:
-                # Light  is in Colour mode 
-                hsv = rgb_to_hsv(payload[6],payload[7],payload[8])
-                self._color_mode = ColorMode.HS
-                self._hs_color = (hsv[0],hsv[1])
-                self._brightness = int(hsv[2] * 255 / 100)
-                self._color_temp_kelvin = None
-                self._effect = EFFECT_OFF_HA
-                LOGGER.debug(f"N: HS Color mode:")
-                LOGGER.debug(f"N: \t System colour: {self._hs_color}")
-                LOGGER.debug(f"N: \t Brightness: {self._brightness}")
-            if selected_effect == 0x0f:
-                # White mode
-                LOGGER.debug("N: White mode")
-                col_temp = payload[9]
-                color_temp_kelvin = self._min_color_temp_kelvin + col_temp * (self._max_color_temp_kelvin - self._min_color_temp_kelvin) / 100
-                self._color_mode = ColorMode.COLOR_TEMP
-                self._hs_color = None
-                self._effect = EFFECT_OFF_HA
-                self._color_temp_kelvin = color_temp_kelvin
-                self._brightness = int(payload[5] * 255 / 100)
-                LOGGER.debug(f"N: \t Color Temp kelvin: {self._color_temp_kelvin}")
-                LOGGER.debug(f"N: \t Brightness: {self._brightness}")
+            if mode == 0x61:
+                if selected_effect == 0xf0:
+                    # Light  is in Colour mode 
+                    hsv = rgb_to_hsv(payload[6],payload[7],payload[8])
+                    self._color_mode = ColorMode.HS
+                    self._hs_color = (hsv[0],hsv[1])
+                    self._brightness = int(hsv[2] * 255 / 100)
+                    self._color_temp_kelvin = None
+                    self._effect = EFFECT_OFF_HA
+                    LOGGER.debug(f"N: HS Color mode:")
+                    LOGGER.debug(f"N: \t System colour: {self._hs_color}")
+                    LOGGER.debug(f"N: \t Brightness: {self._brightness}")
+                if selected_effect == 0x0f:
+                    # White mode
+                    LOGGER.debug("N: White mode")
+                    col_temp = payload[9]
+                    color_temp_kelvin = self._min_color_temp_kelvin + col_temp * (self._max_color_temp_kelvin - self._min_color_temp_kelvin) / 100
+                    self._color_mode = ColorMode.COLOR_TEMP
+                    self._hs_color = None
+                    self._effect = EFFECT_OFF_HA
+                    self._color_temp_kelvin = color_temp_kelvin
+                    self._brightness = int(payload[5] * 255 / 100)
+                    LOGGER.debug(f"N: \t Color Temp kelvin: {self._color_temp_kelvin}")
+                    LOGGER.debug(f"N: \t Brightness: {self._brightness}")
+            if mode == 0x25:
+                LOGGER.debug("N: Effects mode")
+                try:
+                    effect_name = EFFECT_ID_TO_NAME[selected_effect]
+                    LOGGER.debug(f"N: \t Effect name: {effect_name}")
+                except KeyError:
+                    LOGGER.debug("N: \t Effect name not found")
+                    effect_name = "Unknown"
+                self._effect = effect_name
 
-        if mode == 0x25:
-            LOGGER.debug("N: Effects mode")
-            try:
-                effect_name = EFFECT_ID_TO_NAME[selected_effect]
-                LOGGER.debug(f"N: \t Effect name: {effect_name}")
-            except KeyError:
-                LOGGER.debug("N: \t Effect name not found")
-                effect_name = "Unknown"
-            self._effect = effect_name
+                self._color_mode = ColorMode.BRIGHTNESS # 2024.2 Allows setting color mode for changing effects brightness
 
-            self._color_mode = ColorMode.BRIGHTNESS # 2024.2 Allows setting color mode for changing effects brightness
-
-            self._brightness = int(payload[6] * 255 / 100)
-            self._effect_speed = int(payload[7] * 255 / 100)
-            if not 0 <= self._effect_speed <= 255:
-              self._effect_speed = 128
-            
-            LOGGER.debug(f"N: \t Brightness (0-255): {self._brightness}")
-            LOGGER.debug(f"N: \t Effect speed: {self._effect_speed}")
-
+                self._brightness = int(payload[6] * 255 / 100)
+                self._effect_speed = int(payload[7] * 255 / 100)
+                if not 0 <= self._effect_speed <= 255:
+                    self._effect_speed = 128
+                LOGGER.debug(f"N: \t Brightness (0-255): {self._brightness}")
+                LOGGER.debug(f"N: \t Effect speed: {self._effect_speed}")
+        
+        if payload[0] == 0x00 and payload[1] == 0x63 and len(payload) == 11:
+            LOGGER.debug("N: LED settings packet: Strip device")
+        
+        if payload[0] == 0x63 and len(payload) == 6:
+            LOGGER.debug("N: LED settings packet: Ring device")
+        
         self.local_callback()
 
 
@@ -264,9 +286,9 @@ class LEDNETWFInstance:
     def mac(self):
         return self._device.address
 
-    @property
-    def reset(self):
-        return self._reset
+    # @property
+    # def reset(self):
+    #     return self._reset
 
     @property
     def name(self):
@@ -385,12 +407,12 @@ class LEDNETWFInstance:
 
     @retry_bluetooth_connection_error
     async def turn_on(self):
-        await self._write(self._turn_on_cmd)
+        await self._write(bytearray.fromhex("00 01 80 00 00 0d 0e 0b 3b 23 00 00 00 00 00 00 00 32 00 00 90"))
         self._is_on = True
-
+    
     @retry_bluetooth_connection_error
     async def turn_off(self):
-        await self._write(self._turn_off_cmd)
+        await self._write(bytearray.fromhex("00 01 80 00 00 0d 0e 0b 3b 24 00 00 00 00 00 00 00 32 00 00 91"))
         self._is_on = False
 
     @retry_bluetooth_connection_error
@@ -399,12 +421,6 @@ class LEDNETWFInstance:
         try:
             await self._ensure_connected()
             self._is_on = False
-            #await asyncio.sleep(1) # TODO: Find a better way!
-            # What I'm trying to achieve here is to wait for the device to send a notification
-            # so that the status is updated correctly.  If nothing gets returned within a few
-            # seconds, assume the device is unavailable.  This might not be a safe assumption.
-            # It does mean however, that if the device is available and working, then everything
-            # in the frontend is correct.  I don't know if this is worth it though.
         except Exception as error:
             self._is_on = None # failed to connect, this should mark it as unavailable
             LOGGER.error("Error getting status: %s", error)
@@ -453,6 +469,7 @@ class LEDNETWFInstance:
             # Send initial packets to device to see if it sends notifications
             LOGGER.debug("%s: Send initial packets", self.name)
             await self._write_while_connected(INITIAL_PACKET)
+            await self._write_while_connected(GET_LED_SETTINGS_PACKET)
 
     def _resolve_characteristics(self, services: BleakGATTServiceCollection) -> bool:
         """Resolve characteristics."""
@@ -516,7 +533,7 @@ class LEDNETWFInstance:
             self._write_uuid = None
             self._read_uuid = None
             if client and client.is_connected:
-                await client.stop_notify(read_char) #  TODO:  I don't think this is needed.  Bleak docs say it isnt.
+                await client.stop_notify(read_char)
                 await client.disconnect()
             LOGGER.debug("%s: Disconnected", self.name)
     
@@ -542,4 +559,4 @@ class LEDNETWFInstance:
         new_percentage = int(new_brightness * 100 / 255)
         LOGGER.debug("Normalized brightness percent is %s", new_percentage)
         return new_percentage
-    
+  

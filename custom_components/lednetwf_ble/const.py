@@ -4,6 +4,8 @@ from homeassistant.components.light import EFFECT_OFF
 DOMAIN = "lednetwf_ble"
 CONF_RESET = "reset"
 CONF_DELAY = "delay"
+RING_LIGHT_MODEL  = 0x53
+STRIP_LIGHT_MODEL = 0x56
 
 EFFECT_OFF_HA = EFFECT_OFF
 
