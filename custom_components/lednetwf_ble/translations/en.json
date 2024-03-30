@@ -35,7 +35,6 @@
         "step": {
             "user": {
                 "data": {
-                    "reset": "Reset color when led turn on",
                     "delay": "Disconnect delay (0 equal never disconnect)"
                 }
             }
