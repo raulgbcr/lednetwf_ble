@@ -51,10 +51,9 @@
                     "name": "Name",
                     "ledtype": "LED type",
                     "colororder": "Color order"                    
-                }
-            },
-            "title": "LEDnetWF"
+                },
+                "title": "LEDnetWF"
+            }
         }
-
     }
 }

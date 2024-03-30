@@ -277,7 +277,7 @@ class LEDNETWFInstance:
             # Strip device settings response
             LOGGER.debug("N: LED settings packet: Strip device")
             led_count = bytes([payload[2], payload[3]])
-            led_count = int.from_bytes(led_count, byteorder='big') * payload[5] # was little
+            led_count = int.from_bytes(led_count, byteorder='big') * payload[5]
             LOGGER.debug(f"N: \t Number of segments: {payload[5]}")
             LOGGER.debug(f"N: \t LED count: {led_count}")
             chip_type = payload[5]
