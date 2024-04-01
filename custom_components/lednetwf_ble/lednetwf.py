@@ -461,33 +461,34 @@ class LEDNETWFInstance:
         self._is_on = False
 
     @retry_bluetooth_connection_error
-    async def set_led_settings(self, led_count, chip_type, colour_order):
-        if led_count is None or chip_type is None or colour_order is None:
+    async def set_led_settings(self, led_count, chip_type, color_order):
+        if led_count is None or chip_type is None or color_order is None:
             LOGGER.warn("LED count, chip type or colour order is None and shouldn't be.  Not setting LED settings.")
             return
-        if led_count == self._led_count and chip_type == self._chip_type and colour_order == self._color_order:
+        if led_count == self._led_count and chip_type == self._chip_type and color_order == self._color_order:
             # If the settings are the same as the current settings, don't bother sending the packet
             LOGGER.debug("Not updating LED settings, nothing to change")
             return
         if self._model == RING_LIGHT_MODEL:
-            chip_type = LedTypes_RingLight.chip_type
+            chip_type = getattr(LedTypes_RingLight, chip_type).value
         elif self._model == STRIP_LIGHT_MODEL:
-            chip_type = LedTypes_StripLight.chip_type
-        
+            chip_type = getattr(LedTypes_StripLight, chip_type).value
+        color_order = getattr(ColorOrdering, color_order).value
+
         led_settings_packet     = bytearray.fromhex("00 00 80 00 00 0b 0c 0b 62 00 64 00 03 01 00 64 03 f0 21")
         self._chip_type         = chip_type
-        self._color_order       = colour_order
+        self._color_order       = color_order
         self._led_count         = led_count
         led_count_bytes         = bytearray(led_count.to_bytes(2, byteorder='big'))
         led_settings_packet[9], led_settings_packet[10] = led_count_bytes
         led_settings_packet[11], led_settings_packet[12] = [0,1] # We're only supporting a single segment
         led_settings_packet[13] = chip_type
-        led_settings_packet[14] = colour_order
+        led_settings_packet[14] = color_order
         led_settings_packet[15] = led_count & 0xFF # I think this is "music mode" which can have a different number of leds to "lightbar" mode. Not going to think about that yet.
         led_settings_packet[16] = 1 # 1 music mode segment
         led_settings_packet[17] = sum(led_settings_packet[9:18]) & 0xFF
         LOGGER.debug(f"LED settings packet: {' '.join([f'{byte:02X}' for byte in led_settings_packet])}")
-        #await self._write(led_settings_packet)
+        await self._write(led_settings_packet)
     
     @retry_bluetooth_connection_error
     async def update(self):
