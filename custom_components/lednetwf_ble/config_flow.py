@@ -151,7 +151,7 @@ class LEDNETWFFlowHandler(config_entries.ConfigFlow, domain=DOMAIN):
             LOGGER.debug(f"LED Count: {led_count}, LED Type: {led_type}, Color Order: {color_order}")
             if "flicker" in user_input:
                 if user_input["flicker"]:
-                    return self.async_create_entry(title=self.device_data.human_readable_name(), data=data, options=options)
+                    return self.async_create_entry(title=self.name, data=data, options=options)
                 return self.async_abort(reason="cannot_validate")
             if "retry" in user_input and not user_input["retry"]:
                 return self.async_abort(reason="cannot_connect")
