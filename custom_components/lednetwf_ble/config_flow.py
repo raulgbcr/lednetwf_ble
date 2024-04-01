@@ -149,15 +149,15 @@ class LEDNETWFFlowHandler(config_entries.ConfigFlow, domain=DOMAIN):
         if user_input is not None:
             LOGGER.debug(f"async step validate with User input: {user_input}")
             led_count   = self._instance._led_count
-            led_type    = self._instance._chip_type
-            color_order = self._instance._color_order
+            led_type    = self._instance._chip_type.name
+            color_order = self._instance._color_order.name
             model_num   = self._instance._model
             data        = {CONF_MAC: self.mac, CONF_NAME: self.name, CONF_DELAY: 120}
             options     = {CONF_LEDCOUNT: led_count, CONF_LEDTYPE: led_type, CONF_COLORORDER: color_order, CONF_MODEL: model_num}
             # TODO: deal with "none" better from old devices which haven't got config data yet. Also update the function in const to not error on none.
             LOGGER.debug(f"LED Count: {led_count}, LED Type: {led_type}, Color Order: {color_order}")
             LOGGER.debug(f"instance: {self._instance}")
-            LOGGER.debug(f"instance dir: {dir(self._instance)}")
+            #LOGGER.debug(f"instance dir: {dir(self._instance)}")
             LOGGER.debug(f"name: {self.name}")
             LOGGER.debug(f"mac: {self.mac}")
 
@@ -277,15 +277,15 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
         #     default_ledchip    = LedTypes_RingLight(self._options.get(CONF_LEDTYPE)).name
         # elif model == STRIP_LIGHT_MODEL:
         #     default_ledchip    = LedTypes_StripLight(self._options.get(CONF_LEDTYPE)).name
-        default_colororder = ColorOrdering(self._options.get(CONF_COLORORDER)).name
-        LOGGER.debug(f"Options flow handler, default led chips: {default_ledchip}")
+        #default_colororder = ColorOrdering(self._options.get(CONF_COLORORDER)).name
+        LOGGER.debug(f"Options flow handler, default led chips: {self._options.get(CONF_LEDTYPE)}")
 
         data_schema = vol.Schema(
             {
                 vol.Optional(CONF_DELAY,      default=default_conf_delay): int,
-                vol.Optional(CONF_LEDCOUNT,   default=self._options.get(CONF_LEDCOUNT)): cv.positive_int,
-                vol.Optional(CONF_LEDTYPE,    default=self._options.get(CONF_LEDTYPE)):  vol.In(ledchips_options),
-                vol.Optional(CONF_COLORORDER, default=default_colororder):               vol.In(colororder_options),
+                vol.Optional(CONF_LEDCOUNT,   default=self._options.get(CONF_LEDCOUNT)):   cv.positive_int,
+                vol.Optional(CONF_LEDTYPE,    default=self._options.get(CONF_LEDTYPE)):    vol.In(ledchips_options),
+                vol.Optional(CONF_COLORORDER, default=self._options.get(CONF_COLORORDER)): vol.In(colororder_options),
             }
         )
         return self.async_show_form(

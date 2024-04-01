@@ -465,14 +465,14 @@ class LEDNETWFInstance:
         if led_count is None or chip_type is None or colour_order is None:
             LOGGER.warn("LED count, chip type or colour order is None and shouldn't be.  Not setting LED settings.")
             return
-        if led_count != self._led_count and chip_type != self._chip_type and colour_order != self._color_order:
+        if led_count == self._led_count and chip_type == self._chip_type and colour_order == self._color_order:
             # If the settings are the same as the current settings, don't bother sending the packet
             LOGGER.debug("Not updating LED settings, nothing to change")
             return
         if self._model == RING_LIGHT_MODEL:
-            chip_type = LedTypes_RingLight.to_value(chip_type)
+            chip_type = LedTypes_RingLight.chip_type
         elif self._model == STRIP_LIGHT_MODEL:
-            chip_type = LedTypes_StripLight.to_value(chip_type)
+            chip_type = LedTypes_StripLight.chip_type
         
         led_settings_packet     = bytearray.fromhex("00 00 80 00 00 0b 0c 0b 62 00 64 00 03 01 00 64 03 f0 21")
         self._chip_type         = chip_type
