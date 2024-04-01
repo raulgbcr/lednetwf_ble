@@ -3,6 +3,7 @@ from datetime import datetime
 from homeassistant.components import bluetooth
 from homeassistant.exceptions import ConfigEntryNotReady
 from homeassistant.components.light import (ColorMode)
+from homeassistant.const import CONF_MAC
 
 from bleak.backends.device import BLEDevice
 from bleak.backends.service import BleakGATTCharacteristic, BleakGATTServiceCollection
@@ -27,7 +28,18 @@ from .const import (
     EFFECT_LIST,
     EFFECT_ID_TO_NAME,
     RING_LIGHT_MODEL,
-    STRIP_LIGHT_MODEL
+    STRIP_LIGHT_MODEL,
+    CONF_LEDCOUNT,
+    CONF_LEDTYPE,
+    CONF_COLORORDER,
+    CONF_LEDCOUNT,
+    CONF_DELAY,
+    DOMAIN,
+    CONF_NAME,
+    CONF_MODEL,
+    LedTypes_StripLight,
+    LedTypes_RingLight,
+    ColorOrdering
 )
 
 LOGGER = logging.getLogger(__name__)
@@ -114,40 +126,43 @@ def rgb_to_hsv(r,g,b):
     return [h,s,v]
 
 class LEDNETWFInstance:
-    def __init__(self, address, reset: None, delay: int, hass) -> None:
-        self.loop = asyncio.get_running_loop()
-        self._mac = address
-        self._delay = delay
-        self._hass = hass
-        self._device: BLEDevice | None = None
-        self._device = bluetooth.async_ble_device_from_address(self._hass, address)
-        service_info = bluetooth.async_last_service_info(self._hass, address).as_dict()
-        manu_data = service_info['manufacturer_data']
+    def __init__(self, mac, hass, data={}, options={}) -> None:
+        self._data    = data
+        self._options = options
+        self._hass    = hass
+        self._mac     = mac
+        self._delay   = data.get(CONF_DELAY, 120)
+        self.loop     = asyncio.get_running_loop()
+        self._device:   BLEDevice | None = None
+        self._device  = bluetooth.async_ble_device_from_address(self._hass, self._mac)
         if not self._device:
             raise ConfigEntryNotReady(
-                f"You need to add bluetooth integration (https://www.home-assistant.io/integrations/bluetooth) or couldn't find a nearby device with address: {address}"
+                f"You need to add bluetooth integration (https://www.home-assistant.io/integrations/bluetooth) or couldn't find a nearby device with address: {self._mac}"
             )
+        
+        service_info  = bluetooth.async_last_service_info(self._hass, self._mac).as_dict()
+        manu_data     = service_info['manufacturer_data']
         self._connect_lock: asyncio.Lock = asyncio.Lock()
         self._client: BleakClientWithServiceCache | None = None
         self._disconnect_timer: asyncio.TimerHandle | None = None
         self._cached_services: BleakGATTServiceCollection | None = None
-        self._expected_disconnect = False
-        self._packet_counter = 0
-        self._is_on = None
-        self._hs_color = None
-        self._brightness = 255
-        self._effect = EFFECT_OFF_HA # 2024.2 this indicates HA that we support effects and they are currently off
-        self._effect_speed = 0x64
-        self._color_temp_kelvin = None
+        self._expected_disconnect   = False
+        self._packet_counter        = 0
+        self._is_on                 = None
+        self._hs_color              = None
+        self._brightness            = 255
+        self._effect                = EFFECT_OFF_HA # 2024.2 this indicates HA that we support effects and they are currently off
+        self._effect_speed          = 0x64
+        self._color_mode            = ColorMode.HS
+        self._write_uuid            = None
+        self._read_uuid             = None
+        self._led_count             = options.get(CONF_LEDCOUNT, None)
+        self._color_order           = options.get(CONF_COLORORDER, None)
+        self._chip_type             = options.get(CONF_LEDTYPE, None)
+        self._model                 = self._detect_model(manu_data)
+        self._color_temp_kelvin     = None
         self._max_color_temp_kelvin = 6500
         self._min_color_temp_kelvin = 2700
-        self._color_mode = ColorMode.HS
-        self._write_uuid = None
-        self._read_uuid = None
-        self._led_count = None
-        self._color_order = None
-        self._chip_type = None
-        self._model = self._detect_model(manu_data)
         self._on_update_callbacks = []
         
         LOGGER.debug(
@@ -167,14 +182,14 @@ class LEDNETWFInstance:
         # Example manu data:
         # 0    1    2    3    4    5    6    7    8    9    10   11   12   13   14   15   16   17   18   19   20   21   22   23   24   25   26
         # 0x53 0x05 0x08 0x65 0xF0 0x0C 0xDA 0x81 0x00 0x1D 0x0F 0x02 0x01 0x01 0x24 0x61 0xF0 0x00 0xFC 0x00 0x00 0x00 0x02 0x00 0x1C 0x00 0x00
-        self._led_count = manu_data_data[24]
-        self._is_on = manu_data_data[14] == 0x23
-        r,g,b = manu_data_data[18], manu_data_data[19], manu_data_data[20]
-        hsv = rgb_to_hsv(r,g,b)
-        self._hs_color = (hsv[0],hsv[1])
+        self._led_count  = manu_data_data[24]
+        self._is_on      = manu_data_data[14] == 0x23
+        r,g,b            = manu_data_data[18], manu_data_data[19], manu_data_data[20]
+        hsv              = rgb_to_hsv(r,g,b)
+        self._hs_color   = (hsv[0],hsv[1])
         self._brightness = int(hsv[2] * 255 / 100)
-        self._fw_major = manu_data_data[0]
-        self._fw_minor = f'{manu_data_data[8]:02X}{manu_data_data[9]:02X}.{manu_data_data[10]:02X}'
+        self._fw_major   = manu_data_data[0]
+        self._fw_minor   = f'{manu_data_data[8]:02X}{manu_data_data[9]:02X}.{manu_data_data[10]:02X}'
         LOGGER.debug(f"DM:\t\t LED count:  {self._led_count}")
         LOGGER.debug(f"DM:\t\t Is on:      {self._is_on}")
         LOGGER.debug(f"DM:\t\t HS Color:   {self._hs_color}")
@@ -190,7 +205,7 @@ class LEDNETWFInstance:
             self._packet_counter = 0
         data[0] = 0xFF00 & self._packet_counter
         data[1] = 0x00FF & self._packet_counter
-        self._packet_counter = self._packet_counter + 1
+        self._packet_counter += 1
         await self._write_while_connected(data)
 
     async def _write_while_connected(self, data: bytearray):
@@ -217,11 +232,11 @@ class LEDNETWFInstance:
         if payload[0] == 0x81:
             # Status update response. TODO: Look up 0x81 (129d) in jadx
             LOGGER.debug("N: Status response received")   
-            sending_model = payload[1]
-            power  = payload[2]
-            mode   = payload[3]
+            sending_model   = payload[1]
+            power           = payload[2]
+            mode            = payload[3]
             selected_effect = payload[4]
-            led_count = payload[12]
+            led_count       = payload[12]
             LOGGER.debug(f"N: \t LED count: {led_count}")
             # checksum = payload[13] # TODO: Implement checksum checking?
 
@@ -263,9 +278,7 @@ class LEDNETWFInstance:
                     LOGGER.debug("N: \t Effect name not found")
                     effect_name = "Unknown"
                 self._effect = effect_name
-
                 self._color_mode = ColorMode.BRIGHTNESS # 2024.2 Allows setting color mode for changing effects brightness
-
                 self._brightness = int(payload[6] * 255 / 100)
                 self._effect_speed = int(payload[7] * 255 / 100)
                 if not 0 <= self._effect_speed <= 255:
@@ -273,30 +286,33 @@ class LEDNETWFInstance:
                 LOGGER.debug(f"N: \t Brightness (0-255): {self._brightness}")
                 LOGGER.debug(f"N: \t Effect speed: {self._effect_speed}")
         
-        if payload[0] == 0x00 and payload[1] == 0x63 and len(payload) == 11:
-            # Strip device settings response
-            LOGGER.debug("N: LED settings packet: Strip device")
-            led_count = bytes([payload[2], payload[3]])
-            led_count = int.from_bytes(led_count, byteorder='big') * payload[5]
-            LOGGER.debug(f"N: \t Number of segments: {payload[5]}")
-            LOGGER.debug(f"N: \t LED count: {led_count}")
-            chip_type = payload[5]
-            colour_order = payload[6]
-            LOGGER.debug(f"N: \t Chip type: {chip_type}")
-            LOGGER.debug(f"N: \t Colour order: {colour_order}")
-            self._led_count = led_count
-            self._chip_type = chip_type
-            self._color_order = colour_order
-        
-        if payload[0] == 0x63 and len(payload) == 6:
-            LOGGER.debug("N: LED settings packet: Ring device")
-            led_count = payload[2]
-            chip_type = payload[3]
-            colour_order = payload[4]
-            LOGGER.debug(f"N: \t LED count: {led_count}")
-            LOGGER.debug(f"N: \t Chip type: {chip_type}")
-            LOGGER.debug(f"N: \t Colour order: {colour_order}")
+        if self._model == RING_LIGHT_MODEL:
+            if payload[1] == 0x63:
+                LOGGER.debug("N: LED settings packet: Ring device")
+                led_count         = payload[2]
+                chip_type         = payload[3]
+                colour_order      = payload[4]
+                self._led_count   = led_count
+                self._chip_type   = LedTypes_RingLight.from_value(chip_type)
+                self._color_order = ColorOrdering.from_value(colour_order)
+                LOGGER.debug(f"N: \t LED count: {led_count}")
+                LOGGER.debug(f"N: \t Chip type: {chip_type} - {self._chip_type}")
+                LOGGER.debug(f"N: \t Colour order: {colour_order} - {self._color_order}")
 
+        if self._model == STRIP_LIGHT_MODEL:
+            if payload[0] == 0x63:
+                led_count = bytes([payload[2], payload[3]])
+                led_count = int.from_bytes(led_count, byteorder='big') * payload[5]
+                chip_type = payload[5]
+                colour_order = payload[6]
+                self._led_count = led_count
+                self._chip_type = LedTypes_StripLight.from_value(chip_type)
+                self._color_order = ColorOrdering.from_value(colour_order)
+                LOGGER.debug("N: LED settings packet: Strip device")
+                LOGGER.debug(f"N: \t Number of segments: {payload[5]}")
+                LOGGER.debug(f"N: \t LED count: {led_count}")
+                LOGGER.debug(f"N: \t Chip type: {chip_type} : {self._chip_type}")
+                LOGGER.debug(f"N: \t Colour order: {colour_order} : {self._color_order}")
         
         self.local_callback()
 
@@ -353,14 +369,17 @@ class LEDNETWFInstance:
     def color_mode(self):
         return self._color_mode
 
-    @retry_bluetooth_connection_error
-    async def set_led_count(self, led_count: int):
-        if led_count is None:
-            return
-        if led_count < 0:
-            led_count = 0
-        LOGGER.debug(f"Setting LED count to {led_count}")
-    
+    # @retry_bluetooth_connection_error
+    # async def set_led_count(self, led_count: int):
+    #     if led_count is None:
+    #         return
+    #     if led_count < 0:
+    #         led_count = 0
+    #     if led_count > 255:
+    #         # The device can probably handle more than this, but untested.  Let's keep it to one byte for now
+    #         led_count = 255
+    #     LOGGER.debug(f"Setting LED count to {led_count}") # TODO, make it actually do something
+            
     @retry_bluetooth_connection_error
     async def set_color_temp_kelvin(self, value: int, new_brightness: int):
         # White colours are represented by colour temperature percentage from 0x0 to 0x64 from warm to cool
@@ -420,12 +439,10 @@ class LEDNETWFInstance:
             LOGGER.error("Effect %s not supported or effect off called", effect)
             return
         self._effect = effect
-
-        self._color_mode = ColorMode.BRIGHTNESS # 2024.2 Allows setting color mode for changing effects brightness
-
-        effect_packet = bytearray.fromhex("00 06 80 00 00 04 05 0b 38 01 32 64")
-        effect_id = EFFECT_MAP.get(effect)
-        effect_packet[9] = effect_id
+        self._color_mode  = ColorMode.BRIGHTNESS # 2024.2 Allows setting color mode for changing effects brightness
+        effect_packet     = bytearray.fromhex("00 06 80 00 00 04 05 0b 38 01 32 64")
+        effect_id         = EFFECT_MAP.get(effect)
+        effect_packet[9]  = effect_id
         effect_packet[10] = self._effect_speed # TODO: Support variable speeds. FLASH should allow us to switch between "fast" and "slow", but I can't work it out
         effect_packet[11] = self.normalize_brightness(new_brightness)
         LOGGER.debug(f"Brightness passed in to set_effect is {new_brightness}")
@@ -443,11 +460,39 @@ class LEDNETWFInstance:
         self._is_on = False
 
     @retry_bluetooth_connection_error
+    async def set_led_settings(self, led_count, chip_type, colour_order):
+        if led_count is None or chip_type is None or colour_order is None:
+            LOGGER.warn("LED count, chip type or colour order is None and shouldn't be.  Not setting LED settings.")
+            return
+        if led_count != self._led_count and chip_type != self._chip_type and colour_order != self._color_order:
+            # If the settings are the same as the current settings, don't bother sending the packet
+            LOGGER.debug("Not updating LED settings, nothing to change")
+            return
+        if self._model == RING_LIGHT_MODEL:
+            chip_type = LedTypes_RingLight.to_value(chip_type)
+        elif self._model == STRIP_LIGHT_MODEL:
+            chip_type = LedTypes_StripLight.to_value(chip_type)
+        
+        led_settings_packet     = bytearray.fromhex("00 00 80 00 00 0b 0c 0b 62 00 64 00 03 01 00 64 03 f0 21")
+        self._chip_type         = chip_type
+        self._color_order       = colour_order
+        self._led_count         = led_count
+        led_count_bytes         = bytearray(led_count.to_bytes(2, byteorder='big'))
+        led_settings_packet[9], led_settings_packet[10] = led_count_bytes
+        led_settings_packet[11], led_settings_packet[12] = [0,1] # We're only supporting a single segment
+        led_settings_packet[13] = chip_type
+        led_settings_packet[14] = colour_order
+        led_settings_packet[15] = led_count & 0xFF # I think this is "music mode" which can have a different number of leds to "lightbar" mode. Not going to think about that yet.
+        led_settings_packet[16] = 1 # 1 music mode segment
+        led_settings_packet[17] = sum(led_settings_packet[9:18]) & 0xFF
+        LOGGER.debug(f"LED settings packet: {' '.join([f'{byte:02X}' for byte in led_settings_packet])}")
+        #await self._write(led_settings_packet)
+    
+    @retry_bluetooth_connection_error
     async def update(self):
         LOGGER.debug("%s: Update in lwdnetwf called", self.name)
         try:
             await self._ensure_connected()
-            self._is_on = False
         except Exception as error:
             self._is_on = None # failed to connect, this should mark it as unavailable
             LOGGER.error("Error getting status: %s", error)

@@ -2,11 +2,13 @@ from enum import Enum
 from homeassistant.components.light import EFFECT_OFF
 
 DOMAIN            = "lednetwf_ble"
+CONF_NAME         = "name"
 CONF_RESET        = "reset"
 CONF_DELAY        = "delay"
 CONF_LEDCOUNT     = "ledcount"
 CONF_LEDTYPE      = "ledtype"
 CONF_COLORORDER   = "colororder"
+CONF_MODEL        = "model"
 RING_LIGHT_MODEL  = 0x53
 STRIP_LIGHT_MODEL = 0x56
 
@@ -15,6 +17,8 @@ EFFECT_OFF_HA = EFFECT_OFF
 EFFECT_CMD = bytearray.fromhex("00 06 80 00 00 04 05 0b 38 01 32 64")
 
 # The names given to the effects are just what I thought they looked like.  Updates are welcome.
+# TODO: This should be an enum really?
+
 EFFECT_1 = "Gold Ring"
 EFFECT_2 = "Red Magenta Fade"
 EFFECT_3 = "Yellow Magenta Fade"
@@ -253,3 +257,55 @@ EFFECT_MAP = {
 
 EFFECT_LIST = sorted(EFFECT_MAP)
 EFFECT_ID_TO_NAME = {v: k for k, v in EFFECT_MAP.items()}
+
+class LedTypes_StripLight(Enum):
+    WS2812B    = 0x01
+    SM16703    = 0x02
+    SM16704    = 0x03
+    WS2811     = 0x04
+    UCS1903    = 0x05
+    SK6812     = 0x06
+    SK6812RGBW = 0x07
+    INK1003    = 0x08
+    UCS2904B   = 0x09
+    JY1903     = 0x0A
+    WS2812E    = 0x0B
+    
+    @classmethod # TODO make a super class for this
+    def from_value(cls, value):
+        for member in cls:
+            if member.value == value:
+                return member
+        raise ValueError(f"No member with value {value}")
+
+class LedTypes_RingLight(Enum):
+    WS2812B    = 0x01
+    SM16703    = 0x02
+    WS2811     = 0x03
+    UCS1903    = 0x04
+    SK6812     = 0x05
+    INK1003    = 0x06
+    
+    @classmethod
+    def from_value(cls, value):
+        for member in cls:
+            if member.value == value:
+                return member
+        raise ValueError(f"No member with value {value}")
+
+class ColorOrdering(Enum):
+    RGB = 0x00
+    RBG = 0x01
+    GRB = 0x02
+    GBR = 0x03
+    BRG = 0x04
+    BGR = 0x05
+    
+    @classmethod
+    def from_value(cls, value):
+        for member in cls:
+            if member.value == value:
+                return member
+        raise ValueError(f"No member with value {value}")
+
+

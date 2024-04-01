@@ -14,20 +14,21 @@ PLATFORMS = ["light"]
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     """Set up from a config entry."""
     LOGGER.debug(f"In __init__ async_setup_entry for {entry}")
-    config = entry.data
+    config  = entry.data
     options = entry.options
 
-    reset = entry.options.get(CONF_RESET, None) or entry.data.get(CONF_RESET, None)
     delay = entry.options.get(CONF_DELAY, None) or entry.data.get(CONF_DELAY, None)
-    ledcount = entry.options.get(CONF_LEDCOUNT, None) or entry.data.get(CONF_LEDCOUNT, None)
-    ledtype = entry.options.get(CONF_LEDTYPE, None) or entry.data.get(CONF_LEDTYPE, None)
-    colororder = entry.options.get(CONF_COLORORDER, None) or entry.data.get(CONF_COLORORDER, None)
+    ledcount = entry.options.get(CONF_LEDCOUNT, None)
+    ledtype = entry.options.get(CONF_LEDTYPE, None)
+    colororder = entry.options.get(CONF_COLORORDER, None)
 
-    LOGGER.debug("Config Reset data: %s and config delay data: %s", reset, delay)
+    LOGGER.debug("Config Reset data: %s and config delay data: %s", delay)
     LOGGER.debug("Config LED Count data: %s and config LED Type data: %s", ledcount, ledtype)
     LOGGER.debug("Config Color Order data: %s", colororder)
 
-    instance = LEDNETWFInstance(entry.data[CONF_MAC], reset, delay, hass)
+    instance = LEDNETWFInstance(entry.data[CONF_MAC], hass, config, options)
+    #await instance.set_led_settings(ledcount, ledtype, colororder)
+
     # Probably call some method to set ledtype etc here.
     #await instance.set_led_count(ledcount)
 
@@ -58,7 +59,11 @@ async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 async def _async_update_listener(hass: HomeAssistant, entry: ConfigEntry) -> None:
     """Handle options update."""
     LOGGER.debug(f"In __init__ _async_update_listener for {entry.entry_id}")
+    instance = hass.data[DOMAIN][entry.entry_id]
+    options = entry.options
+    LOGGER.debug(f"Options: {options}")
+    LOGGER.debug(f"instance: {instance}")
     await hass.config_entries.async_reload(entry.entry_id)
-    #instance = hass.data[DOMAIN][entry.entry_id]
+    
     # if entry.title != instance.name:
     #     await hass.config_entries.async_reload(entry.entry_id)
