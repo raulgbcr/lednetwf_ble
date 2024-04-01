@@ -76,7 +76,7 @@ class LEDNETWFFlowHandler(config_entries.ConfigFlow, domain=DOMAIN):
         self.device_data = DeviceData(discovery_info)
         self.mac = self.device_data.address()
         self.name = human_readable_name(None, self.device_data.name(), self.mac)
-        self.context["title_placeholders"] = {"name": human_readable_name(None, self.device_data.name(), self.mac())}
+        self.context["title_placeholders"] = {"name": human_readable_name(None, self.name, self.mac)}
         if self.device_data.supported():
             self._discovered_devices.append(self.device_data)
             return await self.async_step_bluetooth_confirm()
