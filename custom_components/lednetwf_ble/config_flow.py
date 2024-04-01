@@ -36,7 +36,7 @@ LOGGER = logging.getLogger(__name__)
 class DeviceData(BluetoothData):
     def __init__(self, discovery_info) -> None:
         self._discovery = discovery_info
-        LOGGER.debug("Discovered bluetooth devices, DeviceData, : %s , %s", self._discovery.address, self._discovery.name)
+        #LOGGER.debug("Discovered bluetooth devices, DeviceData, : %s , %s", self._discovery.address, self._discovery.name)
     def supported(self):
         return self._discovery.name.lower().startswith("lednetwf")
     def address(self):
@@ -69,14 +69,13 @@ class LEDNETWFFlowHandler(config_entries.ConfigFlow, domain=DOMAIN):
 
     async def async_step_bluetooth(self, discovery_info: BluetoothServiceInfoBleak) -> FlowResult:
         """Handle the bluetooth discovery step."""
-        LOGGER.debug("Discovered bluetooth devices, step bluetooth, : %s , %s", discovery_info.address, discovery_info.name)
+        #LOGGER.debug("Discovered bluetooth devices, step bluetooth, : %s , %s", discovery_info.address, discovery_info.name)
         await self.async_set_unique_id(discovery_info.address)
         self._abort_if_unique_id_configured()
-        #device = DeviceData(discovery_info)
         self.device_data = DeviceData(discovery_info)
         self.mac = self.device_data.address()
         self.name = human_readable_name(None, self.device_data.name(), self.mac)
-        self.context["title_placeholders"] = {"name": human_readable_name(None, self.name, self.mac)}
+        self.context["title_placeholders"] = {"name": self.name}
         if self.device_data.supported():
             self._discovered_devices.append(self.device_data)
             return await self.async_step_bluetooth_confirm()
@@ -85,15 +84,14 @@ class LEDNETWFFlowHandler(config_entries.ConfigFlow, domain=DOMAIN):
 
     async def async_step_bluetooth_confirm(self, user_input: dict[str, Any] | None = None) -> FlowResult:
         """Confirm discovery."""
-        LOGGER.debug("Discovered bluetooth devices, step bluetooth confirm, : %s", user_input)
+        #LOGGER.debug("Discovered bluetooth devices, step bluetooth confirm, : %s", user_input)
         self._set_confirm_only()
         return await self.async_step_user()
     
     async def async_step_user(self, user_input: dict[str, Any] | None = None) -> FlowResult:
         """Handle the user step to pick discovered device.  All we care about here is getting the MAC of the device we want to connect to."""
-        LOGGER.debug(f"In async_step_user.  User input: {user_input}")
-        LOGGER.debug(f"Discovered devices: {self._discovered_devices}")
-
+        #LOGGER.debug(f"In async_step_user.  User input: {user_input}")
+        #LOGGER.debug(f"Discovered devices: {self._discovered_devices}")
 
         if user_input is not None:
             self.mac = user_input[CONF_MAC]
@@ -115,8 +113,8 @@ class LEDNETWFFlowHandler(config_entries.ConfigFlow, domain=DOMAIN):
         # Find all the current bluetooth devices known and add them to a list if they are
         # supported.  If we already know about them, don't add them to the list.
         current_addresses = self._async_current_ids()
-        LOGGER.debug(f"Current addresses: {current_addresses}")
-        LOGGER.debug(f"async current addresses: {self._async_current_ids()}")
+        #LOGGER.debug(f"Current addresses: {current_addresses}")
+        #LOGGER.debug(f"async current addresses: {self._async_current_ids()}")
 
         for discovery_info in async_discovered_service_info(self.hass):
             mac = discovery_info.address
@@ -129,7 +127,7 @@ class LEDNETWFFlowHandler(config_entries.ConfigFlow, domain=DOMAIN):
                 #LOGGER.debug("Device %s in discovered_devices", (device))
                 continue
             device = DeviceData(discovery_info)
-            LOGGER.debug(f"Device data: {device}")
+            #LOGGER.debug(f"Device data: {device}")
             if device.supported():
                 self._discovered_devices.append(device)
         self.mac_dict = { dev.address(): dev.name() for dev in self._discovered_devices }

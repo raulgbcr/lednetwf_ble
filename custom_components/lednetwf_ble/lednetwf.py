@@ -209,7 +209,7 @@ class LEDNETWFInstance:
         await self._write_while_connected(data)
 
     async def _write_while_connected(self, data: bytearray):
-        LOGGER.debug(f"Writing data to {self.name}: {data}")
+        LOGGER.debug(f"Writing data to {self.name}: {' '.join([f'{byte:02X}' for byte in data])}")
         await self._client.write_gatt_char(self._write_uuid, data, False)
     
     def _notification_handler(self, _sender: BleakGATTCharacteristic, data: bytearray) -> None:
@@ -541,6 +541,7 @@ class LEDNETWFInstance:
             # Send initial packets to device to see if it sends notifications
             LOGGER.debug("%s: Send initial packets", self.name)
             await self._write_while_connected(INITIAL_PACKET)
+            LOGGER.debug(f"Sending GET_LED_SETTINGS_PACKET to {self.name}")
             await self._write_while_connected(GET_LED_SETTINGS_PACKET)
 
     def _resolve_characteristics(self, services: BleakGATTServiceCollection) -> bool:
