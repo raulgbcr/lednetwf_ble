@@ -217,6 +217,7 @@ class LEDNETWFInstance:
         #TODO: If nothing has changed, bail out early
         """Handle BLE notifications from the device.  Update internal state to reflect the device state."""
         LOGGER.debug("N: %s: Notification received", self.name)
+        LOGGER.debug(f"N: Device info: {self._model, self.name, self._mac}")
         response_str = data.decode("utf-8", errors="ignore")
         last_quote = response_str.rfind('"')
         if last_quote > 0:
@@ -227,8 +228,9 @@ class LEDNETWFInstance:
                 return None
         else:
             return None
-        LOGGER.debug("N: Payload: %s", payload)
+        # LOGGER.debug("N: Payload: %s", payload)
         payload = bytearray.fromhex(payload)
+        LOGGER.debug(f"N: Response Payload: {' '.join([f'{byte:02X}' for byte in payload])}")
         if payload[0] == 0x81:
             # Status update response. TODO: Look up 0x81 (129d) in jadx
             LOGGER.debug("N: Status response received")   
@@ -237,7 +239,6 @@ class LEDNETWFInstance:
             mode            = payload[3]
             selected_effect = payload[4]
             led_count       = payload[12]
-            LOGGER.debug(f"N: \t LED count: {led_count}")
             # checksum = payload[13] # TODO: Implement checksum checking?
 
             if power == 0x23:
@@ -285,9 +286,9 @@ class LEDNETWFInstance:
                     self._effect_speed = 128
                 LOGGER.debug(f"N: \t Brightness (0-255): {self._brightness}")
                 LOGGER.debug(f"N: \t Effect speed: {self._effect_speed}")
-        
+
         if self._model == RING_LIGHT_MODEL:
-            if payload[1] == 0x63:
+            if payload[0] == 0x63:
                 LOGGER.debug("N: LED settings packet: Ring device")
                 led_count         = payload[2]
                 chip_type         = payload[3]
@@ -300,7 +301,7 @@ class LEDNETWFInstance:
                 LOGGER.debug(f"N: \t Colour order: {colour_order} - {self._color_order}")
 
         if self._model == STRIP_LIGHT_MODEL:
-            if payload[0] == 0x63:
+            if payload[1] == 0x63:
                 led_count = bytes([payload[2], payload[3]])
                 led_count = int.from_bytes(led_count, byteorder='big') * payload[5]
                 chip_type = payload[5]
