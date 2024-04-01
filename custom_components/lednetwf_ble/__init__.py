@@ -63,6 +63,9 @@ async def _async_update_listener(hass: HomeAssistant, entry: ConfigEntry) -> Non
     options = entry.options
     LOGGER.debug(f"Options: {options}")
     LOGGER.debug(f"instance: {instance}")
+    # async def set_led_settings(self, led_count, chip_type, colour_order):
+    # {'ledcount': 50, 'ledtype': 'WS2812B', 'colororder': 'RBG', 'model': 86, 'delay': 120}
+    await instance.set_led_settings(options.get(CONF_LEDCOUNT), options.get(CONF_LEDTYPE), options.get(CONF_COLORORDER))
     await hass.config_entries.async_reload(entry.entry_id)
     
     # if entry.title != instance.name:

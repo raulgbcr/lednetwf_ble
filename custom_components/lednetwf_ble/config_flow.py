@@ -26,6 +26,8 @@ from .const import (
     CONF_LEDTYPE,
     CONF_COLORORDER,
     CONF_MODEL,
+    RING_LIGHT_MODEL,
+    STRIP_LIGHT_MODEL,
     LedTypes_StripLight,
     LedTypes_RingLight,
     ColorOrdering
@@ -244,10 +246,10 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
     async def async_step_user(self, user_input=None):
         """Handle a flow initialized by the user."""
         LOGGER.debug(f"Options flow handler step user")
-        LOGGER.debug(f"Config entry: {self._config_entry}")
         errors = {}
         #options = self.config_entry.options
-        model   = self._options.get("model_num")
+        model   = self._options.get("model")
+        LOGGER.debug(f"Options flow handler, model: {model}")
 
         if user_input is not None:
             new_led_count   = user_input.get(CONF_LEDCOUNT)
@@ -256,13 +258,14 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
             new_color_order = user_input.get(CONF_COLORORDER)
             new_color_order = ColorOrdering[new_color_order].value
             new_delay       = user_input.get(CONF_DELAY)
-            entry_id          = self.hass.data[DOMAIN][self.config_entry.entry_id]
+            #entry_id        = self.hass.data[DOMAIN][self.config_entry.entry_id]
             LOGGER.debug(f"Options flow handler")
             LOGGER.debug(f"User input: {user_input}")
             LOGGER.debug(f"Options flow handler, new led count: {new_led_count}, new led type: {new_led_type}, new color order: {new_color_order}, new delay: {new_delay}")
-            LOGGER.debug(f"Options flow handler, device: {entry_id}")
+            #LOGGER.debug(f"Options flow handler, device: {entry_id}")
             self._options.update(user_input)
-            return await self._update_options()
+            # return await self._update_options()
+            return self.async_create_entry(title=self._config_entry.title, data=self._options)
 
         LOGGER.debug(f"Options flow handler, there was no user input.  Options: {self._options}")
         
@@ -270,16 +273,19 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
         ledchiplist = LedTypes_StripLight if model == 0x56 else LedTypes_RingLight # TODO: This should be more dynamic.
         ledchips_options   = [option.name for option in ledchiplist]
         colororder_options = [option.name for option in ColorOrdering]
-        default_ledchip    = self._options.get(CONF_LEDTYPE)
-        default_colororder = self._options.get(CONF_COLORORDER)
+        # if model == RING_LIGHT_MODEL:
+        #     default_ledchip    = LedTypes_RingLight(self._options.get(CONF_LEDTYPE)).name
+        # elif model == STRIP_LIGHT_MODEL:
+        #     default_ledchip    = LedTypes_StripLight(self._options.get(CONF_LEDTYPE)).name
+        default_colororder = ColorOrdering(self._options.get(CONF_COLORORDER)).name
         LOGGER.debug(f"Options flow handler, default led chips: {default_ledchip}")
 
         data_schema = vol.Schema(
             {
                 vol.Optional(CONF_DELAY,      default=default_conf_delay): int,
-                vol.Optional(CONF_LEDCOUNT,   default=self._options.get(CONF_LEDCOUNT)):   cv.positive_int,
-                vol.Optional(CONF_LEDTYPE,    default=default_ledchip):                   vol.In(ledchips_options),
-                vol.Optional(CONF_COLORORDER, default=default_colororder):                vol.In(colororder_options),
+                vol.Optional(CONF_LEDCOUNT,   default=self._options.get(CONF_LEDCOUNT)): cv.positive_int,
+                vol.Optional(CONF_LEDTYPE,    default=self._options.get(CONF_LEDTYPE)):  vol.In(ledchips_options),
+                vol.Optional(CONF_COLORORDER, default=default_colororder):               vol.In(colororder_options),
             }
         )
         return self.async_show_form(
@@ -290,8 +296,8 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
 
     async def _update_options(self):
         """Update config entry options."""
-        LOGGER.debug(f"Options flow handler, _update_options OPTIONS: {self._options}")
+        # LOGGER.debug(f"Options flow handler, _update_options OPTIONS: {self._options}")
         LOGGER.debug(f"Options flow handler, _update_options, config entry DATA: {self._config_entry}")
-        LOGGER.debug(f"Options flow handler, _update_options, device: {self.hass.data[DOMAIN][self._config_entry.entry_id]}")
-        LOGGER.debug(f"Options flow handler, _update_options, device DEVICE DATA: {self.device_data}")
-        return self.async_create_entry(title=self.device_data.human_readable_name(), data=self._data, options=self._options)
+        LOGGER.debug(f"Options flow handler, _update_options, self name: {self._config_entry.title}")
+        # return self.async_create_entry(title=self._config_entry.title, data=self._data, options=self._options)
+        return self.async_create_entry(self._config_entry)
