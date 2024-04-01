@@ -97,6 +97,8 @@ class LEDNETWFFlowHandler(config_entries.ConfigFlow, domain=DOMAIN):
 
         if user_input is not None:
             self.mac = user_input[CONF_MAC]
+            if self.name is None:
+                self.name = self.mac_dict[self.mac]
             # if "title_placeholders" in self.context:
             #     self.name = self.context["title_placeholders"]["name"]
             # if 'source' in self.context.keys() and self.context['source'] == "user":
@@ -106,34 +108,39 @@ class LEDNETWFFlowHandler(config_entries.ConfigFlow, domain=DOMAIN):
             #       if each.address() == self.mac:
             #         self.name = each.get_device_name()
             #if self.name is None: self.name = self.mac
-            #await self.async_set_unique_id(self.mac, raise_on_progress=False)
-            #self._abort_if_unique_id_configured()
-            
+            await self.async_set_unique_id(self.mac, raise_on_progress=False)
+            self._abort_if_unique_id_configured()
             return await self.async_step_validate()
 
         # Find all the current bluetooth devices known and add them to a list if they are
         # supported.  If we already know about them, don't add them to the list.
         current_addresses = self._async_current_ids()
+        LOGGER.debug(f"Current addresses: {current_addresses}")
+        LOGGER.debug(f"async current addresses: {self._async_current_ids()}")
 
         for discovery_info in async_discovered_service_info(self.hass):
             mac = discovery_info.address
             if mac in current_addresses:
+                # Device is already configured in HA, skip it.
                 #LOGGER.debug("Device %s in current_addresses", (mac))
                 continue
             if (device for device in self._discovered_devices if device.address == mac) == ([]):
+                # Device is already in the list of discovered devices, skip it.
                 #LOGGER.debug("Device %s in discovered_devices", (device))
                 continue
             device = DeviceData(discovery_info)
+            LOGGER.debug(f"Device data: {device}")
             if device.supported():
                 self._discovered_devices.append(device)
-        mac_dict = { dev.address(): dev.name() for dev in self._discovered_devices }
-        if len(mac_dict) == 0:
+        self.mac_dict = { dev.address(): dev.name() for dev in self._discovered_devices }
+        LOGGER.debug(f"mac dict: {self.mac_dict}")
+        if len(self.mac_dict) == 0:
             return self.async_abort(reason="no_devices_found")
         
         return self.async_show_form(
             step_id="user", data_schema=vol.Schema(
                 {
-                    vol.Required(CONF_MAC): vol.In(mac_dict)
+                    vol.Required(CONF_MAC): vol.In(self.mac_dict),
                 }
             ),
             errors={})
@@ -149,6 +156,11 @@ class LEDNETWFFlowHandler(config_entries.ConfigFlow, domain=DOMAIN):
             options     = {CONF_LEDCOUNT: led_count, CONF_LEDTYPE: led_type, CONF_COLORORDER: color_order, CONF_MODEL: model_num}
             # TODO: deal with "none" better from old devices which haven't got config data yet. Also update the function in const to not error on none.
             LOGGER.debug(f"LED Count: {led_count}, LED Type: {led_type}, Color Order: {color_order}")
+            LOGGER.debug(f"instance: {self._instance}")
+            LOGGER.debug(f"instance dir: {dir(self._instance)}")
+            LOGGER.debug(f"name: {self.name}")
+            LOGGER.debug(f"mac: {self.mac}")
+
             if "flicker" in user_input:
                 if user_input["flicker"]:
                     return self.async_create_entry(title=self.name, data=data, options=options)
