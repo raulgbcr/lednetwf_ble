@@ -98,7 +98,7 @@ class LEDNETWFFlowHandler(config_entries.ConfigFlow, domain=DOMAIN):
         if user_input is not None:
             self.mac = user_input[CONF_MAC]
             if self.name is None:
-                self.name = self.mac_dict[self.mac]
+                self.name = human_readable_name(None, self.mac_dict[self.mac], self.mac)
             # if "title_placeholders" in self.context:
             #     self.name = self.context["title_placeholders"]["name"]
             # if 'source' in self.context.keys() and self.context['source'] == "user":

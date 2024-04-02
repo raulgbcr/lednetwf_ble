@@ -131,7 +131,10 @@ class LEDNETWFInstance:
         self._options = options
         self._hass    = hass
         self._mac     = mac
-        self._delay   = data.get(CONF_DELAY, 120)
+        self._delay   = self._options.get(CONF_DELAY, self._data.get(CONF_DELAY, 120)) # Try and read from options first, data second so that if this is changed via config then new values are picked up
+        LOGGER.debug(f"In instantiation of LEDNET instance.  Delay: {self._delay}")
+        LOGGER.debug(f"Data: {self._data}")
+        LOGGER.debug(f"Options: {self._options}")
         self.loop     = asyncio.get_running_loop()
         self._device:   BLEDevice | None = None
         self._device  = bluetooth.async_ble_device_from_address(self._hass, self._mac)
@@ -173,6 +176,7 @@ class LEDNETWFInstance:
         )
 
     def _detect_model(self, manu_data):
+        # This will pre-set a number of options to those which the device is currently advertising.  e.g. if the device is already on and red, this will pre-set those values.
         manu_data_id = next(iter(manu_data))
         manu_data_data = bytearray(manu_data[manu_data_id])
         formatted = [f'0x{byte:02X}' for byte in manu_data_data]
@@ -304,8 +308,8 @@ class LEDNETWFInstance:
             if payload[1] == 0x63:
                 led_count = bytes([payload[2], payload[3]])
                 led_count = int.from_bytes(led_count, byteorder='big') * payload[5]
-                chip_type = payload[5]
-                colour_order = payload[6]
+                chip_type = payload[6]
+                colour_order = payload[7]
                 self._led_count = led_count
                 self._chip_type = LedTypes_StripLight.from_value(chip_type)
                 self._color_order = ColorOrdering.from_value(colour_order)
@@ -370,17 +374,6 @@ class LEDNETWFInstance:
     def color_mode(self):
         return self._color_mode
 
-    # @retry_bluetooth_connection_error
-    # async def set_led_count(self, led_count: int):
-    #     if led_count is None:
-    #         return
-    #     if led_count < 0:
-    #         led_count = 0
-    #     if led_count > 255:
-    #         # The device can probably handle more than this, but untested.  Let's keep it to one byte for now
-    #         led_count = 255
-    #     LOGGER.debug(f"Setting LED count to {led_count}") # TODO, make it actually do something
-            
     @retry_bluetooth_connection_error
     async def set_color_temp_kelvin(self, value: int, new_brightness: int):
         # White colours are represented by colour temperature percentage from 0x0 to 0x64 from warm to cool
@@ -461,42 +454,63 @@ class LEDNETWFInstance:
         self._is_on = False
 
     @retry_bluetooth_connection_error
-    async def set_led_settings(self, led_count, chip_type, color_order):
+    async def set_led_settings(self, options: dict):
+        led_count   = options.get(CONF_LEDCOUNT)
+        chip_type   = options.get(CONF_LEDTYPE)
+        color_order = options.get(CONF_COLORORDER)
+        self._delay = options.get(CONF_DELAY, 120)
+        
         if led_count is None or chip_type is None or color_order is None:
             LOGGER.warn("LED count, chip type or colour order is None and shouldn't be.  Not setting LED settings.")
             return
+        
         if led_count == self._led_count and chip_type == self._chip_type and color_order == self._color_order:
             # If the settings are the same as the current settings, don't bother sending the packet
             LOGGER.debug("Not updating LED settings, nothing to change")
             return
-        if self._model == RING_LIGHT_MODEL:
-            chip_type = getattr(LedTypes_RingLight, chip_type).value
-        elif self._model == STRIP_LIGHT_MODEL:
-            chip_type = getattr(LedTypes_StripLight, chip_type).value
-        color_order = getattr(ColorOrdering, color_order).value
+        else:
+            self._chip_type         = chip_type
+            self._color_order       = color_order
+            self._led_count         = led_count
 
-        led_settings_packet     = bytearray.fromhex("00 00 80 00 00 0b 0c 0b 62 00 64 00 03 01 00 64 03 f0 21")
-        self._chip_type         = chip_type
-        self._color_order       = color_order
-        self._led_count         = led_count
-        led_count_bytes         = bytearray(led_count.to_bytes(2, byteorder='big'))
-        led_settings_packet[9], led_settings_packet[10] = led_count_bytes
-        led_settings_packet[11], led_settings_packet[12] = [0,1] # We're only supporting a single segment
-        led_settings_packet[13] = chip_type
-        led_settings_packet[14] = color_order
-        led_settings_packet[15] = led_count & 0xFF # I think this is "music mode" which can have a different number of leds to "lightbar" mode. Not going to think about that yet.
-        led_settings_packet[16] = 1 # 1 music mode segment
-        led_settings_packet[17] = sum(led_settings_packet[9:18]) & 0xFF
+        if self._model == RING_LIGHT_MODEL:
+            chip_type           = getattr(LedTypes_RingLight, chip_type).value
+        elif self._model == STRIP_LIGHT_MODEL:
+            chip_type           = getattr(LedTypes_StripLight, chip_type).value
+        
+        color_order             = getattr(ColorOrdering, color_order).value
+
+        if self._model == STRIP_LIGHT_MODEL:
+            led_settings_packet     = bytearray.fromhex("00 00 80 00 00 0b 0c 0b 62 00 64 00 03 01 00 64 03 f0 21")
+            led_count_bytes         = bytearray(led_count.to_bytes(2, byteorder='big'))
+            led_settings_packet[9], led_settings_packet[10]  = led_count_bytes
+            led_settings_packet[11], led_settings_packet[12] = [0,1] # We're only supporting a single segment
+            led_settings_packet[13] = chip_type
+            led_settings_packet[14] = color_order
+            led_settings_packet[15] = led_count & 0xFF # I think this is "music mode" which can have a different number of leds to "lightbar" mode. Not going to think about that yet.
+            led_settings_packet[16] = 1 # 1 music mode segment
+            led_settings_packet[17] = sum(led_settings_packet[9:18]) & 0xFF
+        if self._model == RING_LIGHT_MODEL:
+            led_settings_packet     = bytearray.fromhex("00 00 80 00 00 06 07 0a 62 00 0e 01 00 71")
+            led_settings_packet[10] = led_count & 0xFF
+            led_settings_packet[11] = chip_type
+            led_settings_packet[12] = color_order
+            led_settings_packet[13] = sum(led_settings_packet[8:12]) & 0xFF
+
         LOGGER.debug(f"LED settings packet: {' '.join([f'{byte:02X}' for byte in led_settings_packet])}")
         await self._write(led_settings_packet)
+        await self._write(GET_LED_SETTINGS_PACKET)
+        await self.stop()
     
     @retry_bluetooth_connection_error
     async def update(self):
+        # This doesn't seem to actually do anything
         LOGGER.debug("%s: Update in lwdnetwf called", self.name)
         try:
             await self._ensure_connected()
         except Exception as error:
-            self._is_on = None # failed to connect, this should mark it as unavailable
+            # It looks like when you change the LED settings the device restarts causing the connection to drop.  Marking this as None breaks things.
+            #self._is_on = None # failed to connect, this should mark it as unavailable.  TODO There might be a race here when setting RGB settings.
             LOGGER.error("Error getting status: %s", error)
             track = traceback.format_exc()
             LOGGER.debug(track)
@@ -542,7 +556,7 @@ class LEDNETWFInstance:
             
             # Send initial packets to device to see if it sends notifications
             LOGGER.debug("%s: Send initial packets", self.name)
-            await self._write_while_connected(INITIAL_PACKET)
+            await self._write_while_connected(INITIAL_PACKET) # TODO add counter here
             LOGGER.debug(f"Sending GET_LED_SETTINGS_PACKET to {self.name}")
             await self._write_while_connected(GET_LED_SETTINGS_PACKET)
 
@@ -561,6 +575,7 @@ class LEDNETWFInstance:
 
     def _reset_disconnect_timer(self) -> None:
         """Reset disconnect timer."""
+        LOGGER.debug("Pat the dog")
         if self._disconnect_timer:
             self._disconnect_timer.cancel()
         self._expected_disconnect = False
