@@ -600,10 +600,9 @@ class LEDNETWFInstance:
         await self.stop()
     
     @retry_bluetooth_connection_error
-    async def update(self):
+    async def update(self, setup=False):
         # Called when HA starts up and wants the devices to initialise themselves
         LOGGER.debug("%s: Update in lwdnetwf called", self.name)
-        setup = False
         if not self._client: setup=True
         try:
             await self._ensure_connected(setup=setup)

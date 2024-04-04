@@ -205,7 +205,7 @@ class LEDNETWFFlowHandler(config_entries.ConfigFlow, domain=DOMAIN):
         if not self._instance:
             self._instance = LEDNETWFInstance(self.mac, self.hass)
         try:
-            await self._instance.update()
+            await self._instance.update(setup=True)
             for n in range(3):
                 await self._instance.turn_on()
                 await asyncio.sleep(1)
