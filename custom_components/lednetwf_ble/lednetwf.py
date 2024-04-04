@@ -311,16 +311,18 @@ class LEDNETWFInstance:
                     LOGGER.debug(f"N: \t RGB Colour OUT: {rgb_out}")
             if mode == 0x25:
                 LOGGER.debug("N: Effects mode")
+                EFFECT_ID_TO_NAME = EFFECT_ID_TO_NAME_0x53 if sending_model == RING_LIGHT_MODEL else EFFECT_ID_TO_NAME_0x56
                 try:
-                    effect_name = EFFECT_ID_TO_NAME_0x53[selected_effect]
+                    effect_name = EFFECT_ID_TO_NAME[selected_effect]
                     LOGGER.debug(f"N: \t Effect name: {effect_name}")
                 except KeyError:
                     LOGGER.debug("N: \t Effect name not found")
                     effect_name = "Unknown"
                 self._effect = effect_name
+                speed = payload[7] if sending_model == RING_LIGHT_MODEL else payload[5]
                 self._color_mode = ColorMode.BRIGHTNESS # 2024.2 Allows setting color mode for changing effects brightness
                 self._brightness = int(payload[6] * 255 / 100)
-                self._effect_speed = int(payload[7] * 255 / 100)
+                self._effect_speed = int(speed * 255 / 100)
                 if not 0 <= self._effect_speed <= 255:
                     self._effect_speed = 128
                 LOGGER.debug(f"N: \t Brightness (0-255): {self._brightness}")
@@ -527,12 +529,13 @@ class LEDNETWFInstance:
             return
         self._effect = effect
         self._color_mode  = ColorMode.BRIGHTNESS # 2024.2 Allows setting color mode for changing effects brightness
-        effect_packet     = bytearray.fromhex("00 06 80 00 00 04 05 0b 38 01 32 64")
+        effect_packet     = bytearray.fromhex("00 00 80 00 00 04 05 0b 38 01 32 64") if self._model == RING_LIGHT_MODEL else bytearray.fromhex("00 00 80 00 00 05 06 0b 42 01 32 64 d9")
         effect_id         = EFFECT_MAP.get(effect)
-        effect_packet[8]  = 0x38 if self._model == RING_LIGHT_MODEL else 0x42
         effect_packet[9]  = effect_id
         effect_packet[10] = self._effect_speed # TODO: Support variable speeds.
         effect_packet[11] = self.normalize_brightness(new_brightness)
+        if self._model == STRIP_LIGHT_MODEL:
+            effect_packet[12] = sum(effect_packet[8:11]) & 0xFF
         LOGGER.debug(f"Brightness passed in to set_effect is {new_brightness}")
         LOGGER.debug(f"After calling Normalized brightness is: {self._brightness}")
         await self._write(effect_packet)
