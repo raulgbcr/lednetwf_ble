@@ -362,7 +362,7 @@ class LEDNETWFInstance:
         # Send initial packets to device to see if it sends notifications
         LOGGER.debug("%s: Send initial packets", self.name)
         await self._write(INITIAL_PACKET)
-        if not self._model:
+        if not self._chip_type:
             # We should only need to get this once, since config is immutable.
             # All future changes of this data will come via the config flow.
             LOGGER.debug(f"Sending GET_LED_SETTINGS_PACKET to {self.name}")
@@ -614,14 +614,15 @@ class LEDNETWFInstance:
 
     async def _ensure_connected(self, setup=False) -> None:
         """Ensure connection to device is established."""
+        LOGGER.debug("%s: Ensure connected", self.name)
+        LOGGER.debug(f"Setup is {setup}")
         if self._connect_lock.locked():
-            LOGGER.debug(
-                "%s: Connection already in progress, waiting for it to complete",
-                self.name,
-            )
+            LOGGER.debug(f"ES {self.name}: Connection already in progress, waiting for it to complete")
+        
         if self._client and self._client.is_connected:
             self._reset_disconnect_timer()
             return
+
         async with self._connect_lock:
             # Check again while holding the lock
             if self._client and self._client.is_connected:
