@@ -248,8 +248,7 @@ class LEDNETWFInstance:
         LOGGER.debug(f"N: Response Payload: {' '.join([f'{byte:02X}' for byte in payload])}")
         if payload[0] == 0x81:
             # Status update response. TODO: Look up 0x81 (129d) in jadx
-            LOGGER.debug("N: Status response received")   
-            sending_model   = payload[1]
+            LOGGER.debug("N: Status response received")
             power           = payload[2]
             mode            = payload[3]
             selected_effect = payload[4]
@@ -311,7 +310,7 @@ class LEDNETWFInstance:
                     LOGGER.debug(f"N: \t RGB Colour OUT: {rgb_out}")
             if mode == 0x25:
                 LOGGER.debug("N: Effects mode")
-                EFFECT_ID_TO_NAME = EFFECT_ID_TO_NAME_0x53 if sending_model == RING_LIGHT_MODEL else EFFECT_ID_TO_NAME_0x56
+                EFFECT_ID_TO_NAME = EFFECT_ID_TO_NAME_0x53 if self._model == RING_LIGHT_MODEL else EFFECT_ID_TO_NAME_0x56
                 try:
                     effect_name = EFFECT_ID_TO_NAME[selected_effect]
                     LOGGER.debug(f"N: \t Effect name: {effect_name}")
@@ -319,7 +318,7 @@ class LEDNETWFInstance:
                     LOGGER.debug("N: \t Effect name not found")
                     effect_name = "Unknown"
                 self._effect = effect_name
-                speed = payload[7] if sending_model == RING_LIGHT_MODEL else payload[5]
+                speed = payload[7] if self._model == RING_LIGHT_MODEL else payload[5]
                 self._color_mode = ColorMode.BRIGHTNESS # 2024.2 Allows setting color mode for changing effects brightness
                 self._brightness = int(payload[6] * 255 / 100)
                 self._effect_speed = int(speed * 255 / 100)
