@@ -24,9 +24,12 @@ import colorsys
 
 from .const import (
     EFFECT_OFF_HA, # todo: why?
-    EFFECT_MAP,
-    EFFECT_LIST,
-    EFFECT_ID_TO_NAME,
+    EFFECT_MAP_0x53,
+    EFFECT_LIST_0x53,
+    EFFECT_ID_TO_NAME_0x53,
+    EFFECT_MAP_0x56,
+    EFFECT_LIST_0x56,
+    EFFECT_ID_TO_NAME_0x56,
     RING_LIGHT_MODEL,
     STRIP_LIGHT_MODEL,
     CONF_LEDCOUNT,
@@ -241,7 +244,6 @@ class LEDNETWFInstance:
                 return None
         else:
             return None
-        # LOGGER.debug("N: Payload: %s", payload)
         payload = bytearray.fromhex(payload)
         LOGGER.debug(f"N: Response Payload: {' '.join([f'{byte:02X}' for byte in payload])}")
         if payload[0] == 0x81:
@@ -288,8 +290,12 @@ class LEDNETWFInstance:
                     # RGB mode and brightness are a bit of a complex problem.  HA send us the colour and brightness separately.  i.e. the RGB colour coming in from HA
                     # is correct and not scaled by brightness.  However, these lights adjust brightness by scaling the RGB values, not by accepting a brightness value.
                     # This means the RGB tuple sent to the device is being scaled at the point of transmission, and so the actual RGB data sent to the device
-                    # is different from the colour selected by the user.  To recover the original RGB values we can, I think, just scale back the other way an multiply
+                    # is different from the colour selected by the user.  To recover the original RGB values we can, I think, just scale back the other way and multiply
                     # the incoming RGB by the brightness percentage.  This will give us the original RGB values.  We can then send these to the UI.
+                    # There is sometimes a lag between the outgoing packet being sent and the notification being received.  This means that the colours can jump around
+                    # a bit when you are dragging the colour picker around.  I'm not sure this is a real problem though, it's easy to ignore.  How could we fix it?
+                    # Maybe a rate limit on the incoming notifications?  For now, just live with it - it's no worse than it has been before.
+
                     LOGGER.debug("N: RGB mode")
                     self._color_mode        = ColorMode.RGB
                     self._hs_color          = None
@@ -306,7 +312,7 @@ class LEDNETWFInstance:
             if mode == 0x25:
                 LOGGER.debug("N: Effects mode")
                 try:
-                    effect_name = EFFECT_ID_TO_NAME[selected_effect]
+                    effect_name = EFFECT_ID_TO_NAME_0x53[selected_effect]
                     LOGGER.debug(f"N: \t Effect name: {effect_name}")
                 except KeyError:
                     LOGGER.debug("N: \t Effect name not found")
@@ -353,9 +359,10 @@ class LEDNETWFInstance:
     async def send_initial_packets(self):
         # Send initial packets to device to see if it sends notifications
         LOGGER.debug("%s: Send initial packets", self.name)
-        await self._write(INITIAL_PACKET) # TODO add counter here
+        await self._write(INITIAL_PACKET)
         if not self._model:
-            # We should only need to get this once, since config is immutable.  All future changes of this data will come via the config flow.
+            # We should only need to get this once, since config is immutable.
+            # All future changes of this data will come via the config flow.
             LOGGER.debug(f"Sending GET_LED_SETTINGS_PACKET to {self.name}")
             await self._write(GET_LED_SETTINGS_PACKET)
     
@@ -405,7 +412,10 @@ class LEDNETWFInstance:
     
     @property
     def effect_list(self) -> list[str]:
-        return EFFECT_LIST
+        if self._model == RING_LIGHT_MODEL:
+            return EFFECT_LIST_0x53
+        else:
+            return EFFECT_LIST_0x56
 
     @property
     def effect(self):
@@ -510,6 +520,8 @@ class LEDNETWFInstance:
         
     @retry_bluetooth_connection_error
     async def set_effect(self, effect: str, new_brightness: int):
+        EFFECT_LIST = EFFECT_LIST_0x53 if self._model == RING_LIGHT_MODEL else EFFECT_LIST_0x56
+        EFFECT_MAP =  EFFECT_MAP_0x53  if self._model == RING_LIGHT_MODEL else EFFECT_MAP_0x56
         if effect not in EFFECT_LIST or effect is EFFECT_OFF_HA:
             LOGGER.error("Effect %s not supported or effect off called", effect)
             return
@@ -517,6 +529,7 @@ class LEDNETWFInstance:
         self._color_mode  = ColorMode.BRIGHTNESS # 2024.2 Allows setting color mode for changing effects brightness
         effect_packet     = bytearray.fromhex("00 06 80 00 00 04 05 0b 38 01 32 64")
         effect_id         = EFFECT_MAP.get(effect)
+        effect_packet[8]  = 0x38 if self._model == RING_LIGHT_MODEL else 0x42
         effect_packet[9]  = effect_id
         effect_packet[10] = self._effect_speed # TODO: Support variable speeds.
         effect_packet[11] = self.normalize_brightness(new_brightness)
@@ -587,13 +600,10 @@ class LEDNETWFInstance:
     async def update(self):
         # Called when HA starts up and wants the devices to initialise themselves
         LOGGER.debug("%s: Update in lwdnetwf called", self.name)
-        if not self._client:
-            await self._ensure_connected(setup=True)
-        else:
-            await self._ensure_connected(setup=False)
-
+        setup = False
+        if not self._client: setup=True
         try:
-            await self._ensure_connected()
+            await self._ensure_connected(setup=setup)
         except Exception as error:
             #self._is_on = None # failed to connect, this should mark it as unavailable.  TODO There might be a race here when setting RGB settings.
             LOGGER.error("Error getting status: %s", error)

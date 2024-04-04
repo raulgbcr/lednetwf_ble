@@ -136,7 +136,7 @@ EFFECT_114 = "Nothing"
 EFFECT_115 = "Nothing 2"
 EFFECT_255 = "_Cycle Through All Modes"
 
-EFFECT_MAP = {
+EFFECT_MAP_0x53 = {
     EFFECT_1: 0x01,
     EFFECT_2: 0x02,
     EFFECT_3: 0x03,
@@ -255,8 +255,16 @@ EFFECT_MAP = {
     EFFECT_255: 0xFF,
 }
 
-EFFECT_LIST = sorted(EFFECT_MAP)
-EFFECT_ID_TO_NAME = {v: k for k, v in EFFECT_MAP.items()}
+EFFECT_MAP_0x56 = {}
+for e in range(1,100):
+    EFFECT_MAP_0x56[f"Effect {e}"] = e
+
+
+EFFECT_LIST_0x53 = sorted(EFFECT_MAP_0x53)
+EFFECT_LIST_0x56 = sorted(EFFECT_MAP_0x56)
+
+EFFECT_ID_TO_NAME_0x53 = {v: k for k, v in EFFECT_MAP_0x53.items()}
+EFFECT_ID_TO_NAME_0x56 = {v: k for k, v in EFFECT_MAP_0x56.items()}
 
 class LedTypes_StripLight(Enum):
     WS2812B    = 0x01

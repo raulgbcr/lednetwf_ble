@@ -47,14 +47,13 @@ class LEDNETWFLight(LightEntity):
         self._entry_id = entry_id
         if self._instance._model == RING_LIGHT_MODEL:
             self._attr_supported_color_modes = {ColorMode.BRIGHTNESS, ColorMode.COLOR_TEMP, ColorMode.HS}
+            self._color_temp_kelvin: self._instance._color_temp_kelvin
         else:
             self._attr_supported_color_modes = {ColorMode.BRIGHTNESS, ColorMode.RGB}
-        #self._attr_supported_color_modes = {ColorMode.BRIGHTNESS, ColorMode.COLOR_TEMP, ColorMode.HS}
         self._attr_supported_features = LightEntityFeature.EFFECT
-        self._attr_brightness_step_pct = 10
+        #self._attr_brightness_step_pct = 10
         self._attr_name = name
         self._attr_unique_id = self._instance.mac
-        self._color_temp_kelvin: self._instance._color_temp_kelvin
         self._instance.local_callback = self.light_local_callback
         
     @property
@@ -66,7 +65,8 @@ class LEDNETWFLight(LightEntity):
         return self._instance.brightness
     @property
     def brightness_step_pct(self):
-        return self._attr_brightness_step_pct
+        #return self._attr_brightness_step_pct
+        return 10
     
     @property
     def is_on(self) -> Optional[bool]:
@@ -199,12 +199,11 @@ class LEDNETWFLight(LightEntity):
         self.async_write_ha_state()
     
     def light_local_callback(self):
-
         self.async_write_ha_state()
 
     def update_ha_state(self) -> None:
         LOGGER.debug("update_ha_state called")
-        if self.hs_color is None and self.color_temp_kelvin is None:
+        if self.hs_color is None and self.color_temp_kelvin is None and self.rgb_color is None:
             self._color_mode = ColorMode.BRIGHTNESS #2024.2 We can use brightness color mode so even when we don't know the state of the light the brightness can be controlled 
         elif self.hs_color is not None:
             self._color_mode = ColorMode.HS
