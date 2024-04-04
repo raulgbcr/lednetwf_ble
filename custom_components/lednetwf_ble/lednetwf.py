@@ -23,7 +23,7 @@ import logging
 import colorsys
 
 from .const import (
-    EFFECT_OFF_HA,
+    EFFECT_OFF_HA, # todo: why?
     EFFECT_MAP,
     EFFECT_LIST,
     EFFECT_ID_TO_NAME,
@@ -145,6 +145,7 @@ class LEDNETWFInstance:
         
         service_info  = bluetooth.async_last_service_info(self._hass, self._mac).as_dict()
         manu_data     = service_info['manufacturer_data']
+        self._model                 = self._detect_model(manu_data)
         self._connect_lock: asyncio.Lock = asyncio.Lock()
         self._client: BleakClientWithServiceCache | None = None
         self._disconnect_timer: asyncio.TimerHandle | None = None
@@ -153,21 +154,20 @@ class LEDNETWFInstance:
         self._packet_counter        = 0
         self._is_on                 = None
         self._hs_color              = None
+        self._rgb_color             = None
         self._brightness            = 255
         self._effect                = EFFECT_OFF_HA # 2024.2 this indicates HA that we support effects and they are currently off
         self._effect_speed          = 0x64
-        self._color_mode            = ColorMode.HS
+        self._color_mode            = ColorMode.HS if self._model == RING_LIGHT_MODEL else ColorMode.RGB
         self._write_uuid            = None
         self._read_uuid             = None
         self._led_count             = options.get(CONF_LEDCOUNT, None)
         self._color_order           = options.get(CONF_COLORORDER, None)
         self._chip_type             = options.get(CONF_LEDTYPE, None)
-        self._model                 = self._detect_model(manu_data)
         self._color_temp_kelvin     = None
         self._max_color_temp_kelvin = 6500
         self._min_color_temp_kelvin = 2700
         self._on_update_callbacks = []
-        
         LOGGER.debug(
             "Model information for device %s : ModelNo %s. MAC: %s",
             self._device.name,
@@ -181,8 +181,9 @@ class LEDNETWFInstance:
         manu_data_data = bytearray(manu_data[manu_data_id])
         formatted = [f'0x{byte:02X}' for byte in manu_data_data]
         formatted_str = ' '.join(formatted)
-        LOGGER.debug(f"\t\t Manufacturer id: {manu_data_id}")
-        LOGGER.debug(f"\t\t Manu data: {formatted_str}")
+        LOGGER.debug(f"DM: \t\t Detecting model... {self.name}")
+        LOGGER.debug(f"DM:\t\t Manufacturer id: {manu_data_id}")
+        LOGGER.debug(f"DM:\t\t Manu data: {formatted_str}")
         # Example manu data:
         # 0    1    2    3    4    5    6    7    8    9    10   11   12   13   14   15   16   17   18   19   20   21   22   23   24   25   26
         # 0x53 0x05 0x08 0x65 0xF0 0x0C 0xDA 0x81 0x00 0x1D 0x0F 0x02 0x01 0x01 0x24 0x61 0xF0 0x00 0xFC 0x00 0x00 0x00 0x02 0x00 0x1C 0x00 0x00
@@ -192,19 +193,27 @@ class LEDNETWFInstance:
         hsv              = rgb_to_hsv(r,g,b)
         self._hs_color   = (hsv[0],hsv[1])
         self._brightness = int(hsv[2] * 255 / 100)
+        brightness_percent = self.normalize_brightness(self._brightness)
+        self._rgb_color  = tuple((component / brightness_percent)*100 for component in (r,g,b))
         self._fw_major   = manu_data_data[0]
         self._fw_minor   = f'{manu_data_data[8]:02X}{manu_data_data[9]:02X}.{manu_data_data[10]:02X}'
+        self._color_mode = ColorMode.HS if self._fw_major == RING_LIGHT_MODEL else ColorMode.RGB
         LOGGER.debug(f"DM:\t\t LED count:  {self._led_count}")
         LOGGER.debug(f"DM:\t\t Is on:      {self._is_on}")
         LOGGER.debug(f"DM:\t\t HS Color:   {self._hs_color}")
+        LOGGER.debug(f"DM:\t\t RGB Color:  {r},{g},{b}")
         LOGGER.debug(f"DM:\t\t Brightness: {self._brightness}")
         LOGGER.debug(f"DM:\t\t FW Major:   {self._fw_major}")
         LOGGER.debug(f"DM:\t\t FW Minor:   {self._fw_minor}")
+        LOGGER.debug(f"DM:\t\t Color Mode: {self._color_mode}")
         return self._fw_major # Is this the best way to differentiate between models?
 
     async def _write(self, data: bytearray):
         """Send command to device and read response."""
-        await self._ensure_connected()
+        if not self._client:
+            await self._ensure_connected(setup=True)
+        else:
+            await self._ensure_connected(setup=False)
         if self._packet_counter > 65535:
             self._packet_counter = 0
         data[0] = 0xFF00 & self._packet_counter
@@ -256,7 +265,7 @@ class LEDNETWFInstance:
                     hsv = rgb_to_hsv(payload[6],payload[7],payload[8])
                     self._color_mode = ColorMode.HS
                     self._hs_color = (hsv[0],hsv[1])
-                    self._brightness = int(hsv[2] * 255 / 100)
+                    self._brightness = int(hsv[2] * 255 / 100) # TODO: Maybe this is buggy?  Should brightnesses bs 8bit values not percentages?
                     self._color_temp_kelvin = None
                     self._effect = EFFECT_OFF_HA
                     LOGGER.debug(f"N: HS Color mode:")
@@ -274,6 +283,26 @@ class LEDNETWFInstance:
                     self._brightness = int(payload[5] * 255 / 100)
                     LOGGER.debug(f"N: \t Color Temp kelvin: {self._color_temp_kelvin}")
                     LOGGER.debug(f"N: \t Brightness: {self._brightness}")
+                if selected_effect == 0x01:
+                    # RGB mode
+                    # RGB mode and brightness are a bit of a complex problem.  HA send us the colour and brightness separately.  i.e. the RGB colour coming in from HA
+                    # is correct and not scaled by brightness.  However, these lights adjust brightness by scaling the RGB values, not by accepting a brightness value.
+                    # This means the RGB tuple sent to the device is being scaled at the point of transmission, and so the actual RGB data sent to the device
+                    # is different from the colour selected by the user.  To recover the original RGB values we can, I think, just scale back the other way an multiply
+                    # the incoming RGB by the brightness percentage.  This will give us the original RGB values.  We can then send these to the UI.
+                    LOGGER.debug("N: RGB mode")
+                    self._color_mode        = ColorMode.RGB
+                    self._hs_color          = None
+                    self._color_temp_kelvin = None
+                    self._effect            = EFFECT_OFF_HA
+                    rgb_in = (payload[6],payload[7],payload[8])
+                    LOGGER.debug(f"N: \t RGB Colour IN : {rgb_in}")
+                    brightness_percent = self.normalize_brightness(self._brightness)
+                    LOGGER.debug(f"N: \t Brightness: {brightness_percent}")
+                    rgb_out = tuple(int((component * 100) / brightness_percent) for component in rgb_in)
+                    rgb_out = tuple(max(0, min(255, component)) for component in rgb_out)
+                    self._rgb_color = rgb_out
+                    LOGGER.debug(f"N: \t RGB Colour OUT: {rgb_out}")
             if mode == 0x25:
                 LOGGER.debug("N: Effects mode")
                 try:
@@ -321,7 +350,15 @@ class LEDNETWFInstance:
         
         self.local_callback()
 
-
+    async def send_initial_packets(self):
+        # Send initial packets to device to see if it sends notifications
+        LOGGER.debug("%s: Send initial packets", self.name)
+        await self._write(INITIAL_PACKET) # TODO add counter here
+        if not self._model:
+            # We should only need to get this once, since config is immutable.  All future changes of this data will come via the config flow.
+            LOGGER.debug(f"Sending GET_LED_SETTINGS_PACKET to {self.name}")
+            await self._write(GET_LED_SETTINGS_PACKET)
+    
     @property
     def mac(self):
         return self._device.address
@@ -362,6 +399,10 @@ class LEDNETWFInstance:
     def hs_color(self):
         return self._hs_color
 
+    @property
+    def rgb_color(self):
+        return self._rgb_color
+    
     @property
     def effect_list(self) -> list[str]:
         return EFFECT_LIST
@@ -406,7 +447,7 @@ class LEDNETWFInstance:
         # The value for the Hue element is divided by two to fit in to a single byte.
         # Saturation and Value are percentages from 0 to 100 (0x64).
         # Value = Brightness
-        LOGGER.debug("Setting HS Color")
+        LOGGER.debug("Setting HS Color") # todo remove this bit
         if hs is None:
             LOGGER.debug("HS is None")
             return
@@ -415,8 +456,9 @@ class LEDNETWFInstance:
 
         self._color_mode = ColorMode.HS
         self._hs_color = hs
-        self._effect = EFFECT_OFF_HA
+        self._rgb_color = None
         self._color_temp_kelvin = None
+        self._effect = EFFECT_OFF_HA
         hue = int(hs[0] / 2)
         saturation = int(hs[1])
         brightness_percent = self.normalize_brightness(new_brightness)
@@ -426,7 +468,46 @@ class LEDNETWFInstance:
         color_hs_packet[12] = brightness_percent
         await self._write(color_hs_packet)
 
+    @retry_bluetooth_connection_error
+    async def set_rgb_color(self, rgb: Tuple[int, int, int], new_brightness: int, fixed_effect=EFFECT_OFF_HA):
+        # The strip light devices on firmware 0x56 support RGB colours via a different command
+        # RGB colour handling is difficult on these devices because they don't implement a separate brightness control.  Instead, the RGB values are scaled by the brightness percentage.
+        # This means we have to try and recover brightness from the RGB values sent back by the notification.  If the values drop below a certain threshold all colour information is
+        # lost and we can't get it back (e.g. a colour of 1,1,1).  To try and work around this we limit the minimum colour value to 25 (10%)  This didn't work.  25 is too high and meant
+        # that the colours were off.  I think I might have fixed the problem though, things were getting scaled twice, on the way out and on the way back in via the notification.
 
+        LOGGER.debug("Set RGB: Setting RGB Color")
+        self._color_mode = ColorMode.RGB
+        self._hs_color = None
+        #self._effect = effect 
+        self._brightness = new_brightness
+        brightness_percent = self.normalize_brightness(new_brightness)
+        LOGGER.debug(f"Set RGB: Raw RGB Color: {rgb}")
+        if rgb is not None:
+            self._rgb_color = rgb
+            r = rgb[0] * brightness_percent // 100
+            g = rgb[1] * brightness_percent // 100
+            b = rgb[2] * brightness_percent // 100
+            LOGGER.debug(f"Set RGB: Scaled RGB: RGB Color: {r},{g},{b}")
+        else:
+            rgb = self._rgb_color
+        
+        r = max(r, 0)
+        g = max(g, 0)
+        b = max(b, 0)
+
+        background_col = [0,0,0] # Consider adding support for this in the future?  For now, set black
+        rgb_packet = bytearray.fromhex("00 00 80 00 00 0d 0e 0b 41 02 ff 00 00 00 00 00 32 00 00 f0 64")
+        rgb_packet[9]  = fixed_effect # 1 is simple RGB mode
+        rgb_packet[10] = r
+        rgb_packet[11] = g
+        rgb_packet[12] = b
+        rgb_packet[13] = background_col[0]
+        rgb_packet[14] = background_col[1]
+        rgb_packet[15] = background_col[2]
+        rgb_packet[20] = sum(rgb_packet[8:19]) & 0xFF # Checksum
+        await self._write(rgb_packet)
+        
     @retry_bluetooth_connection_error
     async def set_effect(self, effect: str, new_brightness: int):
         if effect not in EFFECT_LIST or effect is EFFECT_OFF_HA:
@@ -437,7 +518,7 @@ class LEDNETWFInstance:
         effect_packet     = bytearray.fromhex("00 06 80 00 00 04 05 0b 38 01 32 64")
         effect_id         = EFFECT_MAP.get(effect)
         effect_packet[9]  = effect_id
-        effect_packet[10] = self._effect_speed # TODO: Support variable speeds. FLASH should allow us to switch between "fast" and "slow", but I can't work it out
+        effect_packet[10] = self._effect_speed # TODO: Support variable speeds.
         effect_packet[11] = self.normalize_brightness(new_brightness)
         LOGGER.debug(f"Brightness passed in to set_effect is {new_brightness}")
         LOGGER.debug(f"After calling Normalized brightness is: {self._brightness}")
@@ -504,18 +585,22 @@ class LEDNETWFInstance:
     
     @retry_bluetooth_connection_error
     async def update(self):
-        # This doesn't seem to actually do anything
+        # Called when HA starts up and wants the devices to initialise themselves
         LOGGER.debug("%s: Update in lwdnetwf called", self.name)
+        if not self._client:
+            await self._ensure_connected(setup=True)
+        else:
+            await self._ensure_connected(setup=False)
+
         try:
             await self._ensure_connected()
         except Exception as error:
-            # It looks like when you change the LED settings the device restarts causing the connection to drop.  Marking this as None breaks things.
             #self._is_on = None # failed to connect, this should mark it as unavailable.  TODO There might be a race here when setting RGB settings.
             LOGGER.error("Error getting status: %s", error)
             track = traceback.format_exc()
             LOGGER.debug(track)
 
-    async def _ensure_connected(self) -> None:
+    async def _ensure_connected(self, setup=False) -> None:
         """Ensure connection to device is established."""
         if self._connect_lock.locked():
             LOGGER.debug(
@@ -553,12 +638,8 @@ class LEDNETWFInstance:
             self._notification_callback = self._notification_handler
             await client.start_notify(self._read_uuid, self._notification_callback)
             LOGGER.debug("%s: Subscribed to notifications", self.name)
-            
-            # Send initial packets to device to see if it sends notifications
-            LOGGER.debug("%s: Send initial packets", self.name)
-            await self._write_while_connected(INITIAL_PACKET) # TODO add counter here
-            LOGGER.debug(f"Sending GET_LED_SETTINGS_PACKET to {self.name}")
-            await self._write_while_connected(GET_LED_SETTINGS_PACKET)
+            if setup:
+                await self.send_initial_packets()
 
     def _resolve_characteristics(self, services: BleakGATTServiceCollection) -> bool:
         """Resolve characteristics."""
@@ -640,10 +721,8 @@ class LEDNETWFInstance:
             new_brightness = 255
         elif new_brightness is None and self._brightness > 1:
             new_brightness = self._brightness
-        if new_brightness < 2:
-            new_brightness = 2
-        if new_brightness > 255:
-            new_brightness = 255
+        new_brightness = max(new_brightness, 2)
+        new_brightness = min(new_brightness, 255)
         LOGGER.debug("New brightness (0-255) is %s", new_brightness)
         self._brightness = new_brightness
         new_percentage = int(new_brightness * 100 / 255)

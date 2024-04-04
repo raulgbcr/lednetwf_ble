@@ -18,9 +18,7 @@ from homeassistant.components.light import (
     ATTR_EFFECT,
     EFFECT_OFF,
     ATTR_HS_COLOR,
-    ATTR_FLASH,
-    FLASH_SHORT,
-    FLASH_LONG,
+    ATTR_RGB_COLOR,
     ColorMode,
     LightEntity,
     LightEntityFeature,
@@ -50,7 +48,7 @@ class LEDNETWFLight(LightEntity):
         if self._instance._model == RING_LIGHT_MODEL:
             self._attr_supported_color_modes = {ColorMode.BRIGHTNESS, ColorMode.COLOR_TEMP, ColorMode.HS}
         else:
-            self._attr_supported_color_modes = {ColorMode.BRIGHTNESS, ColorMode.HS}
+            self._attr_supported_color_modes = {ColorMode.BRIGHTNESS, ColorMode.RGB}
         #self._attr_supported_color_modes = {ColorMode.BRIGHTNESS, ColorMode.COLOR_TEMP, ColorMode.HS}
         self._attr_supported_features = LightEntityFeature.EFFECT
         self._attr_brightness_step_pct = 10
@@ -108,6 +106,11 @@ class LEDNETWFLight(LightEntity):
     def hs_color(self):
         """Return the hs color value."""
         return self._instance.hs_color
+  
+    @property
+    def rgb_color(self):
+        """Return the rgb color value."""
+        return self._instance.rgb_color
 
     @property
     def color_mode(self):
@@ -144,7 +147,7 @@ class LEDNETWFLight(LightEntity):
             on_brightness = 255
 
 
-        if ATTR_COLOR_TEMP_KELVIN not in kwargs and ATTR_HS_COLOR not in kwargs and ATTR_EFFECT not in kwargs:
+        if ATTR_COLOR_TEMP_KELVIN not in kwargs and ATTR_HS_COLOR not in kwargs and ATTR_EFFECT not in kwargs and ATTR_RGB_COLOR not in kwargs:
             # i.e. only a brightness change
             if self._instance._effect is not None and self._instance._effect is not EFFECT_OFF:
                 # Before HA 2024.2
@@ -159,16 +162,22 @@ class LEDNETWFLight(LightEntity):
                 kwargs[ATTR_COLOR_TEMP_KELVIN] = self._instance.color_temp_kelvin
             elif self._instance._color_mode is ColorMode.HS:
                 kwargs[ATTR_HS_COLOR] = self._instance.hs_color
+            elif self._instance._color_mode is ColorMode.RGB:
+                kwargs[ATTR_RGB_COLOR] = self._instance.rgb_color
 
+        if ATTR_BRIGHTNESS in kwargs and ATTR_EFFECT == EFFECT_OFF:
+            self._instance._effect = EFFECT_OFF
+        
         if ATTR_COLOR_TEMP_KELVIN in kwargs:
             self._instance._color_mode = ColorMode.COLOR_TEMP
-            self._instance._effect = None
+            # self._instance._effect = EFFECT_OFF
             await self._instance.set_color_temp_kelvin(kwargs[ATTR_COLOR_TEMP_KELVIN], on_brightness)
         elif ATTR_HS_COLOR in kwargs:
             await self._instance.set_hs_color(kwargs[ATTR_HS_COLOR], on_brightness)
-        elif ATTR_EFFECT in kwargs:
+        elif ATTR_RGB_COLOR in kwargs:
+            await self._instance.set_rgb_color(kwargs[ATTR_RGB_COLOR], on_brightness, fixed_effect=1)
+        elif ATTR_EFFECT in kwargs and kwargs[ATTR_EFFECT] != EFFECT_OFF:
             await self._instance.set_effect(kwargs[ATTR_EFFECT], on_brightness)
-
         self.async_write_ha_state()
 
     async def async_turn_off(self, **kwargs: Any) -> None:
@@ -190,6 +199,7 @@ class LEDNETWFLight(LightEntity):
         self.async_write_ha_state()
     
     def light_local_callback(self):
+
         self.async_write_ha_state()
 
     def update_ha_state(self) -> None:
@@ -198,6 +208,8 @@ class LEDNETWFLight(LightEntity):
             self._color_mode = ColorMode.BRIGHTNESS #2024.2 We can use brightness color mode so even when we don't know the state of the light the brightness can be controlled 
         elif self.hs_color is not None:
             self._color_mode = ColorMode.HS
+        elif self.rgb_color is not None:
+            self._color_mode = ColorMode.RGB
         elif self.color_temp_kelvin is not None:
             self._color_mode = ColorMode.COLOR_TEMP
         self.available = self._instance.is_on != None
