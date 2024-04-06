@@ -185,12 +185,14 @@ class LEDNETWFInstance:
         manu_data_data = bytearray(manu_data[manu_data_id])
         formatted = [f'0x{byte:02X}' for byte in manu_data_data]
         formatted_str = ' '.join(formatted)
-        LOGGER.debug(f"DM: \t\t Detecting model... {self.name}")
+        LOGGER.debug(f"DM:\t\t Detecting model... {self.name}")
         LOGGER.debug(f"DM:\t\t Manufacturer id: {manu_data_id}")
         LOGGER.debug(f"DM:\t\t Manu data: {formatted_str}")
         # Example manu data:
-        # 0    1    2    3    4    5    6    7    8    9    10   11   12   13   14   15   16   17   18   19   20   21   22   23   24   25   26
-        # 0x53 0x05 0x08 0x65 0xF0 0x0C 0xDA 0x81 0x00 0x1D 0x0F 0x02 0x01 0x01 0x24 0x61 0xF0 0x00 0xFC 0x00 0x00 0x00 0x02 0x00 0x1C 0x00 0x00
+        # 0  1  2  3  4  5  6  7  8  9  10 11 12 13 14 15 16 17 18 19 20 21 22 23 24 25 26
+        # 53 05 08 65 F0 0C DA 81 00 1D 0F 02 01 01 24 61 F0 00 FC 00 00 00 02 00 1C 00 00
+        # Static mode red full speed
+        # 56 05 08 65 f0 62 b0 5b 00 a3 2d 03 01 02 23 61 02 64 ff 08 00 00 03 00 36 00 00
         self._led_count  = manu_data_data[24]
         self._is_on      = True if manu_data_data[14] == 0x23 else False
         r,g,b            = manu_data_data[18], manu_data_data[19], manu_data_data[20]
@@ -202,14 +204,16 @@ class LEDNETWFInstance:
         self._fw_major   = manu_data_data[0]
         self._fw_minor   = f'{manu_data_data[8]:02X}{manu_data_data[9]:02X}.{manu_data_data[10]:02X}'
         self._color_mode = ColorMode.HS if self._fw_major == RING_LIGHT_MODEL else ColorMode.RGB
-        LOGGER.debug(f"DM:\t\t LED count:  {self._led_count}")
-        LOGGER.debug(f"DM:\t\t Is on:      {self._is_on}")
-        LOGGER.debug(f"DM:\t\t HS Color:   {self._hs_color}")
-        LOGGER.debug(f"DM:\t\t RGB Color:  {r},{g},{b}")
-        LOGGER.debug(f"DM:\t\t Brightness: {self._brightness}")
-        LOGGER.debug(f"DM:\t\t FW Major:   {self._fw_major}")
-        LOGGER.debug(f"DM:\t\t FW Minor:   {self._fw_minor}")
-        LOGGER.debug(f"DM:\t\t Color Mode: {self._color_mode}")
+        self._effect_speed = manu_data_data[17]
+        LOGGER.debug(f"DM:\t\t LED count:    {self._led_count}")
+        LOGGER.debug(f"DM:\t\t Is on:        {self._is_on}")
+        LOGGER.debug(f"DM:\t\t HS Color:     {self._hs_color}")
+        LOGGER.debug(f"DM:\t\t RGB Color:    {r},{g},{b}")
+        LOGGER.debug(f"DM:\t\t Brightness:   {self._brightness}")
+        LOGGER.debug(f"DM:\t\t FW Major:     {self._fw_major}")
+        LOGGER.debug(f"DM:\t\t FW Minor:     {self._fw_minor}")
+        LOGGER.debug(f"DM:\t\t Color Mode:   {self._color_mode}")
+        LOGGER.debug(f"DM:\t\t Effect Speed: {self._effect_speed}")
         return self._fw_major # Is this the best way to differentiate between models?
 
     async def _write(self, data: bytearray):
@@ -324,7 +328,7 @@ class LEDNETWFInstance:
                     #     LOGGER.debug("N: \t Effect name not found")
                     #     effect_name = "Unknown"
                     self._effect = effect_name
-                    self._color_mode = ColorMode.BRIGHTNESS # TODO: Not sure how this will react.  Need to test.  Will it break the brightness slider?
+                    #self._color_mode = ColorMode.BRIGHTNESS # TODO: Not sure how this will react.  Need to test.  Will it break the brightness slider?
                     self._effect_speed = payload[5]  
                     LOGGER.debug(f"N: \t Effect speed (0-100): {self._effect_speed}")
 
@@ -547,15 +551,14 @@ class LEDNETWFInstance:
         if effect not in EFFECT_LIST or effect is EFFECT_OFF_HA:
             LOGGER.error("Effect %s not supported or effect off called", effect)
             return
+        
         self._effect = effect
         brightness_percent = self.normalize_brightness(new_brightness)
-
-        self._color_mode  = ColorMode.BRIGHTNESS # 2024.2 Allows setting color mode for changing effects brightness
-        effect_packet     = bytearray.fromhex("00 00 80 00 00 04 05 0b 38 01 32 64") if self._model == RING_LIGHT_MODEL else bytearray.fromhex("00 00 80 00 00 05 06 0b 42 01 32 64 d9")
         effect_id         = EFFECT_MAP.get(effect)
+
         if 0xFF < effect_id < 0xFFFF: # See const for the meaning of these values 
             # We are dealing with special effect numbers
-            LOGGER.debug(f"Special effect: {effect_id}")
+            LOGGER.debug(f"'Static' effect: {effect_id}")
             effect_id = effect_id >> 8 # Shift back to the actual effect id
             LOGGER.debug(f"Special effect after shifting: {effect_id}")
             effect_packet = bytearray.fromhex("00 00 80 00 00 0d 0e 0b 41 02 ff 00 00 00 00 00 32 00 00 f0 64")
@@ -574,16 +577,35 @@ class LEDNETWFInstance:
         
         if effect_id == 0xFFFF: # Music mode
             LOGGER.debug("Music mode")
+            #                                  0  1  2  3  4  5  6  7  8  9  10 11 12 13 14 15 16 17 18 19 20
+            effect_packet = bytearray.fromhex("00 22 80 00 00 0d 0e 0b 73 00 26 01 ff 00 00 ff 00 00 20 1a d2")
+            #                                  00 0c 80 00 00 0d 0e 0b 73 01 26 01 ff 00 00 ff 00 00 35 36 04
+            effect_packet[9]  = 1 # On
+            LOGGER.debug(f"Effect packet now: {' '.join([f'{byte:02X}' for byte in effect_packet])}")
+            effect_packet[11] = 1 # Music mode - need to enumerate these still. 1-10
+            LOGGER.debug(f"Effect packet now: {' '.join([f'{byte:02X}' for byte in effect_packet])}")
+            effect_packet[12:15] = self._rgb_color
+            LOGGER.debug(f"Effect packet now: {' '.join([f'{byte:02X}' for byte in effect_packet])}")
+            effect_packet[15:18] = self._rgb_color # maybe background colour?
+            LOGGER.debug(f"Effect packet now: {' '.join([f'{byte:02X}' for byte in effect_packet])}")
+            effect_packet[18] = self._effect_speed # Actually sensitivity, but would like to avoid another slider if poss
+            LOGGER.debug(f"Effect packet now: {' '.join([f'{byte:02X}' for byte in effect_packet])}")
+            effect_packet[19] = brightness_percent
+            LOGGER.debug(f"Effect packet now: {' '.join([f'{byte:02X}' for byte in effect_packet])}")
+            check = sum(effect_packet[8:19]) & 0xFF
+            LOGGER.debug(f"Checksum: {check}")
+            effect_packet[20] = sum(effect_packet[8:19]) & 0xFF
+            LOGGER.debug(f"Music mode packet: {' '.join([f'{byte:02X}' for byte in effect_packet])}")
+            await self._write(effect_packet)
             return
-        else:    
-            effect_packet[9]  = effect_id
-            effect_packet[10] = self._effect_speed # TODO: Support variable speeds.
-            effect_packet[11] = brightness_percent
-            if self._model == STRIP_LIGHT_MODEL:
-                effect_packet[12] = sum(effect_packet[8:11]) & 0xFF
-
-        LOGGER.debug(f"Brightness passed in to set_effect is {new_brightness}")
-        LOGGER.debug(f"After calling Normalized brightness is: {self._brightness}")
+        
+        effect_packet     = bytearray.fromhex("00 00 80 00 00 04 05 0b 38 01 32 64") if self._model == RING_LIGHT_MODEL else bytearray.fromhex("00 00 80 00 00 05 06 0b 42 01 32 64 d9")
+        self._color_mode  = ColorMode.BRIGHTNESS # 2024.2 Allows setting color mode for changing effects brightness.  Effects above here support RGB, so only set here.
+        effect_packet[9]  = effect_id
+        effect_packet[10] = self._effect_speed # TODO: Support variable speeds.
+        effect_packet[11] = brightness_percent
+        if self._model == STRIP_LIGHT_MODEL:
+            effect_packet[12] = sum(effect_packet[8:11]) & 0xFF
         await self._write(effect_packet)
 
     @retry_bluetooth_connection_error
@@ -592,6 +614,7 @@ class LEDNETWFInstance:
         self._effect_speed = speed
         if self._effect == EFFECT_OFF_HA:
             return
+        await self.set_effect(self._effect, self._brightness)
         LOGGER.debug(f"Setting effect speed to {speed}")
         LOGGER.debug(f"Effect: {self._effect}")
 
