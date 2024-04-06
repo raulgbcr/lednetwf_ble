@@ -255,9 +255,17 @@ EFFECT_MAP_0x53 = {
     EFFECT_255: 0xFF,
 }
 
+# 0x56 Effect data
 EFFECT_MAP_0x56 = {}
 for e in range(1,100):
     EFFECT_MAP_0x56[f"Effect {e}"] = e
+
+for e in range(1,11):
+    EFFECT_MAP_0x56[f"Static Effect {e}"] = e << 8 # Give the static effects much higher values which we can then shift back again in the effect function
+
+EFFECT_MAP_0x56["_Sound Reactive"] = 0xFFFF # This is going to be a special case
+
+
 
 
 EFFECT_LIST_0x53 = sorted(EFFECT_MAP_0x53)

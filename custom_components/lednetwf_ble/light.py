@@ -175,7 +175,7 @@ class LEDNETWFLight(LightEntity):
         elif ATTR_HS_COLOR in kwargs:
             await self._instance.set_hs_color(kwargs[ATTR_HS_COLOR], on_brightness)
         elif ATTR_RGB_COLOR in kwargs:
-            await self._instance.set_rgb_color(kwargs[ATTR_RGB_COLOR], on_brightness, fixed_effect=1)
+            await self._instance.set_rgb_color(kwargs[ATTR_RGB_COLOR], on_brightness)
         elif ATTR_EFFECT in kwargs and kwargs[ATTR_EFFECT] != EFFECT_OFF:
             await self._instance.set_effect(kwargs[ATTR_EFFECT], on_brightness)
         self.async_write_ha_state()

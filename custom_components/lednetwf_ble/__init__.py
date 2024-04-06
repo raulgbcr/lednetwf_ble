@@ -3,13 +3,15 @@ from __future__ import annotations
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant, Event
 from homeassistant.const import CONF_MAC, EVENT_HOMEASSISTANT_STOP
+from homeassistant.const import Platform
+
 
 from .const import DOMAIN, CONF_RESET, CONF_DELAY, CONF_LEDCOUNT, CONF_LEDTYPE, CONF_COLORORDER
 from .lednetwf import LEDNETWFInstance
 import logging
 
 LOGGER = logging.getLogger(__name__)
-PLATFORMS = ["light"]
+PLATFORMS: list[Platform] = [Platform.LIGHT, Platform.NUMBER]
 
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     """Set up from a config entry."""
