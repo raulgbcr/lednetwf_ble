@@ -200,11 +200,11 @@ class LEDNETWFInstance:
         self._hs_color   = (hsv[0],hsv[1])
         self._brightness = int(hsv[2] * 255 // 100)
         brightness_percent = self.normalize_brightness(self._brightness)
-        self._rgb_color  = tuple(int(min(255,(component / brightness_percent)*100)) for component in (r,g,b))
+        self._rgb_color  = tuple(int(min(255,(component / max(brightness_percent,1))*100)) for component in (r,g,b))
         self._fw_major   = manu_data_data[0]
         self._fw_minor   = f'{manu_data_data[8]:02X}{manu_data_data[9]:02X}.{manu_data_data[10]:02X}'
         self._color_mode = ColorMode.HS if self._fw_major == RING_LIGHT_MODEL else ColorMode.RGB
-        self._effect_speed = manu_data_data[17]
+        self._effect_speed = min(manu_data_data[17], 10)
         LOGGER.debug(f"DM:\t\t LED count:    {self._led_count}")
         LOGGER.debug(f"DM:\t\t Is on:        {self._is_on}")
         LOGGER.debug(f"DM:\t\t HS Color:     {self._hs_color}")
@@ -306,8 +306,9 @@ class LEDNETWFInstance:
                     self._effect            = EFFECT_OFF_HA
                     rgb_in = (payload[6],payload[7],payload[8])
                     LOGGER.debug(f"N: \t RGB Colour IN : {rgb_in}")
-                    brightness_percent = self.normalize_brightness(self._brightness)
+                    brightness_percent = max(self.normalize_brightness(self._brightness),1)
                     LOGGER.debug(f"N: \t Brightness: {brightness_percent}")
+                    # rgb_out = tuple(int((component * 100) / brightness_percent) for component in list(rgb_in))
                     rgb_out = tuple(int((component * 100) / brightness_percent) for component in rgb_in)
                     rgb_out = tuple(max(0, min(255, component)) for component in rgb_out)
                     self._rgb_color = rgb_out
@@ -610,7 +611,7 @@ class LEDNETWFInstance:
 
     @retry_bluetooth_connection_error
     async def set_effect_speed(self, speed):
-        speed = max(0, min(100, speed))
+        speed = max(1, min(100, speed)) # Should be zero for stationary effects?
         self._effect_speed = speed
         if self._effect == EFFECT_OFF_HA:
             return

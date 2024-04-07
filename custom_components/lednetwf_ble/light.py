@@ -40,6 +40,8 @@ async def async_setup_entry(hass, config_entry, async_add_devices):
 
 
 class LEDNETWFLight(LightEntity):
+    _attr_has_entity_name = False
+
     def __init__(
         self, lednetwfinstance: LEDNETWFInstance, name: str, entry_id: str
     ) -> None:
@@ -52,7 +54,9 @@ class LEDNETWFLight(LightEntity):
             self._attr_supported_color_modes = {ColorMode.BRIGHTNESS, ColorMode.RGB}
         self._attr_supported_features = LightEntityFeature.EFFECT
         #self._attr_brightness_step_pct = 10
+        #self._attr_has_entity_name = False
         self._attr_name = name
+
         self._attr_unique_id = self._instance.mac
         self._instance.local_callback = self.light_local_callback
         
@@ -116,7 +120,11 @@ class LEDNETWFLight(LightEntity):
     def color_mode(self):
         """Return the color mode of the light."""
         return self._instance._color_mode
-
+    
+    @property
+    def firmware_version(self):
+        return f"{self._instance._fw_major:02X}.{self._instance._fw_minor}"
+    
     @property
     def device_info(self):
         """Return device info."""
@@ -127,12 +135,25 @@ class LEDNETWFLight(LightEntity):
             },
             name=self.name,
             connections={(device_registry.CONNECTION_NETWORK_MAC, self._instance.mac)},
+            model=self._instance._model,
+            sw_version=self.firmware_version
         )
 
     @property
     def should_poll(self):
         return False
 
+    @property
+    def name(self) -> str:
+        return self._attr_name
+    
+    @property
+    def icon(self):
+        if self._instance._model == RING_LIGHT_MODEL:
+            return "mdi:lightbulb"
+        else:
+            return "mdi:led-strip-variant"
+    
     async def async_turn_on(self, **kwargs: Any) -> None:
         LOGGER.debug("async_turn_on called")
         LOGGER.debug("kwargs: %s", kwargs)
