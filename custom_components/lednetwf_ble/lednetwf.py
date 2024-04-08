@@ -183,27 +183,20 @@ class LEDNETWFInstance:
         LOGGER.debug(f"  *** {self._mac} : \t {text}")
 
     def _detect_model(self, manu_data):
-        # This will pre-set a number of options to those which the device is currently advertising.  e.g. if the device is already on and red, this will pre-set those values.
+        # This will pre-set a number of options to those which the device is currently advertising.
+        # e.g. if the device is already on and red, this will pre-set those values.
         manu_data_id = next(iter(manu_data))
         manu_data_data = bytearray(manu_data[manu_data_id])
         formatted = [f'0x{byte:02X}' for byte in manu_data_data]
         formatted_str = ' '.join(formatted)
-        self.log(f"DM:\t\t Detecting model... {self.name}")
-        self.log(f"DM:\t\t Manufacturer id:   {manu_data_id}")
         self.log(f"DM:\t\t Manu data:         {formatted_str}")
-        # Example manu data:
-        # 0  1  2  3  4  5  6  7  8  9  10 11 12 13 14 15 16 17 18 19 20 21 22 23 24 25 26
-        # 53 05 08 65 F0 0C DA 81 00 1D 0F 02 01 01 24 61 F0 00 FC 00 00 00 02 00 1C 00 00
-        # Static mode red full speed
-        # 56 05 08 65 f0 62 b0 5b 00 a3 2d 03 01 02 23 61 02 64 ff 08 00 00 03 00 36 00 00
-
         self._fw_major   = manu_data_data[0]
         self._fw_minor   = f'{manu_data_data[8]:02X}{manu_data_data[9]:02X}.{manu_data_data[10]:02X}'
         self._led_count  = manu_data_data[24]
         self._is_on      = True if manu_data_data[14] == 0x23 else False
         
         if manu_data_data[15] == 0x61:
-            # Colour mode (RGB & Whites)
+            # Colour mode (RGB & Whites) and "Static" effects
             if manu_data_data[16] == 0xf0:
                 # RGB Mode
                 r,g,b = manu_data_data[18], manu_data_data[19], manu_data_data[20]
@@ -212,7 +205,6 @@ class LEDNETWFInstance:
                     hsv              = rgb_to_hsv(r,g,b)
                     self._hs_color   = (hsv[0],hsv[1])
                     self._brightness = int(hsv[2] * 255 // 100)
-                    #self._brightness = self.normalize_brightness(self._brightness)
                     self._color_mode = ColorMode.HS if self._fw_major == RING_LIGHT_MODEL else ColorMode.RGB
                 if self._fw_major == STRIP_LIGHT_MODEL:
                     self._color_mode   = ColorMode.RGB
@@ -229,33 +221,32 @@ class LEDNETWFInstance:
                 hsv              = rgb_to_hsv(*self._rgb_color)
                 self._hs_color   = (hsv[0],hsv[1])
                 self._brightness = int(hsv[2] * 255 // 100)
-                #self._brightness = self.normalize_brightness(self._brightness)
                 self._color_mode = ColorMode.RGB
                 self._effect_speed = manu_data_data[17]
+                if self._fw_major == STRIP_LIGHT_MODEL:
+                    if 0x02 <= manu_data_data[16] <= 0x0a:
+                        self._effect = EFFECT_ID_TO_NAME_0x56[manu_data_data[16] << 8]
+                    else:
+                        self._effect = EFFECT_OFF_HA
+                    # TODO: Detect music mode
+        
         if manu_data_data[15] == 0x25:
                 # Effects mode
                 effect             = manu_data_data[16]
                 self._effect       = EFFECT_ID_TO_NAME_0x53[effect] if self._fw_major == RING_LIGHT_MODEL else EFFECT_ID_TO_NAME_0x56[effect]
                 self._effect_speed = manu_data_data[19]             if self._fw_major == RING_LIGHT_MODEL else manu_data_data[17]
-                self._brightness   = manu_data_data[18]
+                self._brightness   = int(manu_data_data[18] * 255 // 100)
                 self._color_mode   = ColorMode.BRIGHTNESS
-        # r,g,b            = manu_data_data[18], manu_data_data[19], manu_data_data[20]
-        # hsv              = rgb_to_hsv(r,g,b)
-        # self._hs_color   = (hsv[0],hsv[1])
-        # self._brightness = int(hsv[2] * 255 // 100)
-        # brightness_percent = self.normalize_brightness(self._brightness)
-        # self._rgb_color  = tuple(int(min(255,(component / max(brightness_percent,1))*100)) for component in (r,g,b))
-        # self._color_mode = ColorMode.HS if self._fw_major == RING_LIGHT_MODEL else ColorMode.RGB
-        # self._effect_speed = min(manu_data_data[17], 10)
-        self.log(f"DM:\t\t LED count:    {self._led_count}")
-        self.log(f"DM:\t\t Is on:        {self._is_on}")
-        self.log(f"DM:\t\t HS Color:     {self._hs_color}")
-        self.log(f"DM:\t\t RGB Color:    {self._rgb_color}")
-        self.log(f"DM:\t\t Brightness:   {self._brightness}")
-        self.log(f"DM:\t\t FW Major:     {self._fw_major}")
-        self.log(f"DM:\t\t FW Minor:     {self._fw_minor}")
-        self.log(f"DM:\t\t Color Mode:   {self._color_mode}")
-        self.log(f"DM:\t\t Effect Speed: {self._effect_speed}")
+
+        # self.log(f"DM:\t\t LED count:    {self._led_count}")
+        # self.log(f"DM:\t\t Is on:        {self._is_on}")
+        # self.log(f"DM:\t\t HS Color:     {self._hs_color}")
+        # self.log(f"DM:\t\t RGB Color:    {self._rgb_color}")
+        # self.log(f"DM:\t\t Brightness:   {self._brightness}")
+        # self.log(f"DM:\t\t FW Major:     {self._fw_major}")
+        # self.log(f"DM:\t\t FW Minor:     {self._fw_minor}")
+        # self.log(f"DM:\t\t Color Mode:   {self._color_mode}")
+        # self.log(f"DM:\t\t Effect Speed: {self._effect_speed}")
         return self._fw_major # Is this the best way to differentiate between models?
 
     async def _write(self, data: bytearray):
@@ -298,14 +289,7 @@ class LEDNETWFInstance:
             selected_effect = payload[4]
             led_count       = payload[12]
             # checksum = payload[13] # TODO: Implement checksum checking?
-            # 0  1  2  3  4  5  6  7  8  9  10 12 12 13
-            # 81 A3 23 61 08 64 FF 04 00 00 03 00 36 50 - static effect 8
-            # 81 A3 23 61 06 64 FF 04 00 00 03 00 36 4E - static effect 6
-            # 81 A3 23 61 01 64 FF 04 00 00 03 00 36 49 - static effect 1
-            if power == 0x23:
-                self._is_on = True
-            elif power == 0x24:
-                self._is_on = False
+            self._is_on = True if power == 0x23 else False
 
             if mode == 0x61:
                 if selected_effect == 0xf0:
@@ -316,12 +300,11 @@ class LEDNETWFInstance:
                     self._brightness = int(hsv[2] * 255 // 100) # TODO: Maybe this is buggy?  Should brightnesses bs 8bit values not percentages?
                     self._color_temp_kelvin = None
                     self._effect = EFFECT_OFF_HA
-                    self.log(f"N: HS Color mode:")
-                    self.log(f"N: \t System colour: {self._hs_color}")
-                    self.log(f"N: \t Brightness: {self._brightness}")
+                    # self.log(f"N: HS Color mode:")
+                    # self.log(f"N: \t System colour: {self._hs_color}")
+                    # self.log(f"N: \t Brightness: {self._brightness}")
                 if selected_effect == 0x0f:
                     # White mode
-                    self.log("N: White mode")
                     col_temp = payload[9]
                     color_temp_kelvin = self._min_color_temp_kelvin + col_temp * (self._max_color_temp_kelvin - self._min_color_temp_kelvin) / 100
                     self._color_mode = ColorMode.COLOR_TEMP
@@ -329,8 +312,8 @@ class LEDNETWFInstance:
                     self._effect = EFFECT_OFF_HA
                     self._color_temp_kelvin = color_temp_kelvin
                     self._brightness = int(payload[5] * 255 // 100)
-                    self.log(f"N: \t Color Temp kelvin: {self._color_temp_kelvin}")
-                    self.log(f"N: \t Brightness: {self._brightness}")
+                    # self.log(f"N: \t Color Temp kelvin: {self._color_temp_kelvin}")
+                    # self.log(f"N: \t Brightness: {self._brightness}")
                 if selected_effect == 0x01:
                     # RGB mode
                     # RGB mode and brightness are a bit of a complex problem.  HA send us the colour and brightness separately.  i.e. the RGB colour coming in from HA
@@ -341,38 +324,24 @@ class LEDNETWFInstance:
                     # There is sometimes a lag between the outgoing packet being sent and the notification being received.  This means that the colours can jump around
                     # a bit when you are dragging the colour picker around.  I'm not sure this is a real problem though, it's easy to ignore.  How could we fix it?
                     # Maybe a rate limit on the incoming notifications?  For now, just live with it - it's no worse than it has been before.
-                    self.log("N: RGB mode")
                     self._color_mode        = ColorMode.RGB
                     self._hs_color          = None
                     self._color_temp_kelvin = None
                     self._effect            = EFFECT_OFF_HA
-                    rgb_in = (payload[6],payload[7],payload[8])
-                    self.log(f"N: \t RGB Colour IN : {rgb_in}")
+                    rgb_in = tuple(payload[6:9])
+                    # self.log(f"N: \t RGB Colour IN : {rgb_in}")
                     brightness_percent = max(self.normalize_brightness(self._brightness),1)
                     self.log(f"N: \t Brightness: {brightness_percent}")
-                    rgb_out = tuple(int((component * 100) / brightness_percent) for component in rgb_in)
-                    rgb_out = tuple(max(0, min(255, component)) for component in rgb_out)
-                    self._rgb_color = rgb_out
-                    self.log(f"N: \t RGB Colour OUT: {rgb_out}")
+                    self._rgb_color = tuple(max(0, min(255, int(component * 100 / brightness_percent))) for component in rgb_in)
+                    # self.log(f"N: \t RGB Colour OUT: {self._rgb_color}")
                 if 0x02 <= selected_effect <= 0x0a:
                     # "Static" effects from strip lights
-                    self.log("N: Static effect")
                     self._color_mode = ColorMode.RGB
-                    self.log(f"N: \t Incoming Effect: {selected_effect}")
                     effect = selected_effect << 8 # Shift back to the numbers defined in the effect map in const
                     effect_name = EFFECT_ID_TO_NAME_0x56[effect]
-                    self.log(f"N: \t Shifted effect: {effect}")
-                    self.log(f"N: \t Effect name: {effect_name}")
-                    # try:
-                    #     effect_name = EFFECT_ID_TO_NAME[selected_effect]
-                    #     self.log(f"N: \t Effect name: {effect_name}")
-                    # except KeyError:
-                    #     self.log("N: \t Effect name not found")
-                    #     effect_name = "Unknown"
                     self._effect = effect_name
-                    #self._color_mode = ColorMode.BRIGHTNESS # TODO: Not sure how this will react.  Need to test.  Will it break the brightness slider?
                     self._effect_speed = payload[5]  
-                    self.log(f"N: \t Effect speed (0-100): {self._effect_speed}")
+                    
 
             if mode == 0x25:
                 self.log("N: Effects mode")
@@ -444,10 +413,6 @@ class LEDNETWFInstance:
     @property
     def mac(self):
         return self._device.address
-
-    # @property
-    # def reset(self):
-    #     return self._reset
 
     @property
     def name(self):
@@ -562,24 +527,21 @@ class LEDNETWFInstance:
         # that the colours were off.  I think I might have fixed the problem though, things were getting scaled twice, on the way out and on the way back in via the notification.
 
         self.log("Set RGB: Setting RGB Color")
+        if rgb is None:
+            rgb = self._rgb_color
         self._color_mode = ColorMode.RGB
         self._hs_color = None
-        self.log("In set_rgb_colour.  Setting brightness to: {new_brightness}")
         self._brightness = new_brightness
         brightness_percent = self.normalize_brightness(new_brightness)
-        self.log(f"Set RGB: Raw RGB Color: {rgb}")
-        if rgb is not None:
-            self._rgb_color = rgb
-            r = rgb[0] * brightness_percent // 100
-            g = rgb[1] * brightness_percent // 100
-            b = rgb[2] * brightness_percent // 100
-            self.log(f"Set RGB: Scaled RGB: RGB Color: {r},{g},{b}")
-        else:
-            rgb = self._rgb_color
+        rgb = tuple(max(0, min(255, int(component * brightness_percent / 100))) for component in rgb)
+        # r = rgb[0] * brightness_percent // 100
+        # g = rgb[1] * brightness_percent // 100
+        # b = rgb[2] * brightness_percent // 100
+        self.log(f"Set RGB: Scaled RGB: RGB Color: {rgb}")
         
-        r = max(r, 0)
-        g = max(g, 0)
-        b = max(b, 0)
+        # r = max(r, 0)
+        # g = max(g, 0)
+        # b = max(b, 0)
 
         background_col = [0,0,0] # Consider adding support for this in the future?  For now, set black
         rgb_packet = bytearray.fromhex("00 00 80 00 00 0d 0e 0b 41 02 ff 00 00 00 00 00 32 00 00 f0 64")
@@ -587,12 +549,14 @@ class LEDNETWFInstance:
         # Leaving it as zero allows people to use the colour picker to change the colour of the static mode in realtime.  I'm not sure what I prefer.  If people want actual
         # static colours they can change to "Static Mode 1" in the effects.  But perhaps that's not what they would expect to have to do?  It's quite hidden.
         # But they pay off is that they can change the colour of the other static modes as they drag the colour picker around, which is pretty neat. ?
-        rgb_packet[10] = r
-        rgb_packet[11] = g
-        rgb_packet[12] = b
-        rgb_packet[13] = background_col[0]
-        rgb_packet[14] = background_col[1]
-        rgb_packet[15] = background_col[2]
+        rgb_packet[10:13] = rgb
+        # rgb_packet[10] = r
+        # rgb_packet[11] = g
+        # rgb_packet[12] = b
+        rgb_packet[13:16] = background_col
+        # rgb_packet[13] = background_col[0]
+        # rgb_packet[14] = background_col[1]
+        # rgb_packet[15] = background_col[2]
         rgb_packet[16] = self._effect_speed
         rgb_packet[20] = sum(rgb_packet[8:19]) & 0xFF # Checksum
         self.log(f"Set RGB. RGB {self._rgb_color} Brightness {self._brightness}")
@@ -606,9 +570,9 @@ class LEDNETWFInstance:
             LOGGER.error(f"Effect {effect} not supported or effect off called")
             return
         
-        self._effect = effect
+        self._effect       = effect
         brightness_percent = self.normalize_brightness(new_brightness)
-        effect_id         = EFFECT_MAP.get(effect)
+        effect_id          = EFFECT_MAP.get(effect)
 
         if 0xFF < effect_id < 0xFFFF: # See const for the meaning of these values 
             # We are dealing with special effect numbers
@@ -616,40 +580,29 @@ class LEDNETWFInstance:
             effect_id = effect_id >> 8 # Shift back to the actual effect id
             self.log(f"Special effect after shifting: {effect_id}")
             effect_packet = bytearray.fromhex("00 00 80 00 00 0d 0e 0b 41 02 ff 00 00 00 00 00 32 00 00 f0 64")
-            self.log(f"rgb_color: {self._rgb_color}")
-            r = self._rgb_color[0] * brightness_percent // 100
-            g = self._rgb_color[1] * brightness_percent // 100
-            b = self._rgb_color[2] * brightness_percent // 100
+            # r = self._rgb_color[0] * brightness_percent // 100
+            # g = self._rgb_color[1] * brightness_percent // 100
+            # b = self._rgb_color[2] * brightness_percent // 100
+            rgb = tuple(max(0, min(255, int(component * brightness_percent / 100))) for component in self._rgb_color)
             effect_packet[9] = effect_id
-            effect_packet[10] = r # | We will copy over the colour that was last used on the strip.
-            effect_packet[11] = g # | this way you can set a colour, then enable the effect and the
-            effect_packet[12] = b # | effect will be in the last colour you selected.  Neat!
+            effect_packet[10:13] = rgb
+            # effect_packet[10] = r # | We will copy over the colour that was last used on the strip.
+            # effect_packet[11] = g # | this way you can set a colour, then enable the effect and the
+            # effect_packet[12] = b # | effect will be in the last colour you selected.  Neat!
             effect_packet[16] = self._effect_speed
             effect_packet[20] = sum(effect_packet[8:19]) & 0xFF # checksum
             await self._write(effect_packet)
             return
         
         if effect_id == 0xFFFF: # Music mode
-            self.log("Music mode")
-            #                                  0  1  2  3  4  5  6  7  8  9  10 11 12 13 14 15 16 17 18 19 20
             effect_packet = bytearray.fromhex("00 22 80 00 00 0d 0e 0b 73 00 26 01 ff 00 00 ff 00 00 20 1a d2")
-            #                                  00 0c 80 00 00 0d 0e 0b 73 01 26 01 ff 00 00 ff 00 00 35 36 04
             effect_packet[9]  = 1 # On
-            self.log(f"Effect packet now: {' '.join([f'{byte:02X}' for byte in effect_packet])}")
             effect_packet[11] = 1 # Music mode - need to enumerate these still. 1-10
-            self.log(f"Effect packet now: {' '.join([f'{byte:02X}' for byte in effect_packet])}")
             effect_packet[12:15] = self._rgb_color
-            self.log(f"Effect packet now: {' '.join([f'{byte:02X}' for byte in effect_packet])}")
             effect_packet[15:18] = self._rgb_color # maybe background colour?
-            self.log(f"Effect packet now: {' '.join([f'{byte:02X}' for byte in effect_packet])}")
-            effect_packet[18] = self._effect_speed # Actually sensitivity, but would like to avoid another slider if poss
-            self.log(f"Effect packet now: {' '.join([f'{byte:02X}' for byte in effect_packet])}")
-            effect_packet[19] = brightness_percent
-            self.log(f"Effect packet now: {' '.join([f'{byte:02X}' for byte in effect_packet])}")
-            check = sum(effect_packet[8:19]) & 0xFF
-            self.log(f"Checksum: {check}")
-            effect_packet[20] = sum(effect_packet[8:19]) & 0xFF
-            self.log(f"Music mode packet: {' '.join([f'{byte:02X}' for byte in effect_packet])}")
+            effect_packet[18]    = self._effect_speed # Actually sensitivity, but would like to avoid another slider if possible
+            effect_packet[19]    = brightness_percent
+            effect_packet[20]    = sum(effect_packet[8:19]) & 0xFF
             await self._write(effect_packet)
             return
         
@@ -816,7 +769,7 @@ class LEDNETWFInstance:
         asyncio.create_task(self._execute_timed_disconnect())
 
     async def stop(self) -> None:
-        """Stop the LEDBLE."""
+        """Stop the LEDNET WF device."""
         LOGGER.debug("%s: Stop", self.name)
         await self._execute_disconnect()
 
