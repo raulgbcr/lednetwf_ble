@@ -14,7 +14,7 @@ STRIP_LIGHT_MODEL = 0x56
 
 EFFECT_OFF_HA = EFFECT_OFF
 
-EFFECT_CMD = bytearray.fromhex("00 06 80 00 00 04 05 0b 38 01 32 64")
+# EFFECT_CMD = bytearray.fromhex("00 06 80 00 00 04 05 0b 38 01 32 64")
 
 # The names given to the effects are just what I thought they looked like.  Updates are welcome.
 # TODO: This should be an enum really?

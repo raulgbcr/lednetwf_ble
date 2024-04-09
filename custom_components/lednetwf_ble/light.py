@@ -11,10 +11,10 @@ from homeassistant.helpers.entity import DeviceInfo
 from homeassistant.components.light import (
     PLATFORM_SCHEMA,
     ATTR_BRIGHTNESS,
-    ATTR_BRIGHTNESS_STEP_PCT,
+    # ATTR_BRIGHTNESS_STEP_PCT,
     ATTR_COLOR_TEMP_KELVIN,
-    ATTR_MIN_COLOR_TEMP_KELVIN,
-    ATTR_MAX_COLOR_TEMP_KELVIN,
+    # ATTR_MIN_COLOR_TEMP_KELVIN,
+    # ATTR_MAX_COLOR_TEMP_KELVIN,
     ATTR_EFFECT,
     EFFECT_OFF,
     ATTR_HS_COLOR,
@@ -155,8 +155,8 @@ class LEDNETWFLight(LightEntity):
             return "mdi:led-strip-variant"
     
     async def async_turn_on(self, **kwargs: Any) -> None:
-        LOGGER.debug("async_turn_on called")
-        LOGGER.debug("kwargs: %s", kwargs)
+        # LOGGER.debug("async_turn_on called")
+        # LOGGER.debug("kwargs: %s", kwargs)
 
         if not self.is_on:
             await self._instance.turn_on()
