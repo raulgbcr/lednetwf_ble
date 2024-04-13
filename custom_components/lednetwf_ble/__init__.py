@@ -20,10 +20,6 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     """Set up from a config entry."""
     config     = entry.data
     options    = entry.options
-    # delay      = entry.options.get(CONF_DELAY, None) or entry.data.get(CONF_DELAY, None)
-    # ledcount   = entry.options.get(CONF_LEDCOUNT, None)
-    # ledtype    = entry.options.get(CONF_LEDTYPE, None)
-    # colororder = entry.options.get(CONF_COLORORDER, None)
     instance   = LEDNETWFInstance(entry.data[CONF_MAC], hass, config, options)
     hass.data.setdefault(DOMAIN, {})
     hass.data[DOMAIN][entry.entry_id] = instance

@@ -19,8 +19,7 @@ async def async_setup_entry(
 ) -> None:
     instance = hass.data[DOMAIN][config_entry.entry_id]
     await instance.update()
-    async_add_entities(
-        [LEDNETWFSpeedSlider(instance, "Effect speed", config_entry.entry_id)])
+    async_add_entities([LEDNETWFSpeedSlider(instance, "Effect speed", config_entry.entry_id)])
 
 class LEDNETWFSpeedSlider(NumberEntity):
     """LEDNETWF Slider for effect speed."""
@@ -28,6 +27,7 @@ class LEDNETWFSpeedSlider(NumberEntity):
     def __init__(self, lednetfInstance: LEDNETWFInstance, attr_name: str, entry_id: str) -> None:
         self._instance             = lednetfInstance
         self._attr_has_entity_name = True
+        #self._attr_translation_key = attr_name # Can't get this to work
         self._attr_name            = attr_name
         self._attr_unique_id       = self._instance.mac
         self._effect_speed         = self._instance._effect_speed

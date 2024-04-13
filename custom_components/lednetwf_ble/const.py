@@ -1,5 +1,4 @@
 from enum import Enum
-from homeassistant.components.light import EFFECT_OFF
 
 DOMAIN            = "lednetwf_ble"
 CONF_NAME         = "name"
@@ -12,7 +11,7 @@ CONF_MODEL        = "model"
 RING_LIGHT_MODEL  = 0x53
 STRIP_LIGHT_MODEL = 0x56
 
-EFFECT_OFF_HA = EFFECT_OFF
+#EFFECT_OFF_HA = EFFECT_OFF
 
 # EFFECT_CMD = bytearray.fromhex("00 06 80 00 00 04 05 0b 38 01 32 64")
 
@@ -260,10 +259,15 @@ EFFECT_MAP_0x56 = {}
 for e in range(1,100):
     EFFECT_MAP_0x56[f"Effect {e}"] = e
 
+# So called "static" effects.  Actually they are effects which can also be set to a specific colour.
 for e in range(1,11):
     EFFECT_MAP_0x56[f"Static Effect {e}"] = e << 8 # Give the static effects much higher values which we can then shift back again in the effect function
 
-EFFECT_MAP_0x56["_Sound Reactive"] = 0xFFFF # This is going to be a special case
+# Sound reactive effects.  Numbered 1-15 internally, we will offset them by 50 to avoid clashes with the other effects
+for e in range(1+0x32, 16+0x32):
+    EFFECT_MAP_0x56[f"Sound Reactive {e-0x32}"] = e << 8
+
+#EFFECT_MAP_0x56["_Sound Reactive"] = 0xFFFF # This is going to be a special case
 
 
 

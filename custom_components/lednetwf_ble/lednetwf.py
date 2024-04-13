@@ -4,6 +4,7 @@ from homeassistant.components import bluetooth
 from homeassistant.exceptions import ConfigEntryNotReady
 from homeassistant.components.light import (ColorMode)
 from homeassistant.const import CONF_MAC
+from homeassistant.components.light import EFFECT_OFF
 
 from bleak.backends.device import BLEDevice
 from bleak.backends.service import BleakGATTCharacteristic, BleakGATTServiceCollection
@@ -23,7 +24,6 @@ import logging
 import colorsys
 
 from .const import (
-    EFFECT_OFF_HA, # todo: why?
     EFFECT_MAP_0x53,
     EFFECT_LIST_0x53,
     EFFECT_ID_TO_NAME_0x53,
@@ -159,7 +159,7 @@ class LEDNETWFInstance:
         self._hs_color              = None
         self._rgb_color             = None
         self._brightness            = 255
-        self._effect                = EFFECT_OFF_HA # 2024.2 this indicates HA that we support effects and they are currently off
+        self._effect                = EFFECT_OFF # 2024.2 this indicates HA that we support effects and they are currently off
         self._effect_speed          = 0x64 # 0-100% speed
         self._model                 = self._detect_model(service_info['manufacturer_data'])
         self._color_mode            = ColorMode.HS if self._model == RING_LIGHT_MODEL else ColorMode.RGB
@@ -192,6 +192,7 @@ class LEDNETWFInstance:
         formatted = [f'0x{byte:02X}' for byte in manu_data_data]
         formatted_str = ' '.join(formatted)
         self.log(f"DM:\t\t Manu data:         {formatted_str}")
+        self._color_mode = ColorMode.BRIGHTNESS
         self._fw_major   = manu_data_data[0]
         self._fw_minor   = f'{manu_data_data[8]:02X}{manu_data_data[9]:02X}.{manu_data_data[10]:02X}'
         self._led_count  = manu_data_data[24]
@@ -229,26 +230,36 @@ class LEDNETWFInstance:
                     if 0x02 <= manu_data_data[16] <= 0x0a:
                         self._effect = EFFECT_ID_TO_NAME_0x56[manu_data_data[16] << 8]
                     else:
-                        self._effect = EFFECT_OFF_HA
+                        self._effect = EFFECT_OFF
                     # TODO: Detect music mode
         
+        if manu_data_data[15] == 0x62:
+            # Music reactive mode
+            self.log("Music reactive mode maybe")
+            self._color_mode = ColorMode.BRIGHTNESS
+            effect = manu_data_data[16]
+            self.log(f"Effect: {effect}")
+            scaled_effect = (effect + 0x32) << 8
+            self._effect = EFFECT_ID_TO_NAME_0x56[scaled_effect]
+
         if manu_data_data[15] == 0x25:
                 # Effects mode
                 effect             = manu_data_data[16]
+                # TODO: How does this work with static and music effects?
                 self._effect       = EFFECT_ID_TO_NAME_0x53[effect] if self._fw_major == RING_LIGHT_MODEL else EFFECT_ID_TO_NAME_0x56[effect]
                 self._effect_speed = manu_data_data[19]             if self._fw_major == RING_LIGHT_MODEL else manu_data_data[17]
                 self._brightness   = int(manu_data_data[18] * 255 // 100)
                 self._color_mode   = ColorMode.BRIGHTNESS
 
-        # self.log(f"DM:\t\t LED count:    {self._led_count}")
-        # self.log(f"DM:\t\t Is on:        {self._is_on}")
-        # self.log(f"DM:\t\t HS Color:     {self._hs_color}")
-        # self.log(f"DM:\t\t RGB Color:    {self._rgb_color}")
-        # self.log(f"DM:\t\t Brightness:   {self._brightness}")
-        # self.log(f"DM:\t\t FW Major:     {self._fw_major}")
-        # self.log(f"DM:\t\t FW Minor:     {self._fw_minor}")
-        # self.log(f"DM:\t\t Color Mode:   {self._color_mode}")
-        # self.log(f"DM:\t\t Effect Speed: {self._effect_speed}")
+        self.log(f"DM:\t\t LED count:    {self._led_count}")
+        self.log(f"DM:\t\t Is on:        {self._is_on}")
+        self.log(f"DM:\t\t HS Color:     {self._hs_color}")
+        self.log(f"DM:\t\t RGB Color:    {self._rgb_color}")
+        self.log(f"DM:\t\t Brightness:   {self._brightness}")
+        self.log(f"DM:\t\t FW Major:     {self._fw_major}")
+        self.log(f"DM:\t\t FW Minor:     {self._fw_minor}")
+        self.log(f"DM:\t\t Color Mode:   {self._color_mode}")
+        self.log(f"DM:\t\t Effect Speed: {self._effect_speed}")
         return self._fw_major # Is this the best way to differentiate between models?
 
     async def _write(self, data: bytearray):
@@ -301,14 +312,14 @@ class LEDNETWFInstance:
                     self._hs_color = (hsv[0],hsv[1])
                     self._brightness = int(hsv[2] * 255 // 100)
                     self._color_temp_kelvin = None
-                    self._effect = EFFECT_OFF_HA
+                    self._effect = EFFECT_OFF
                 if selected_effect == 0x0f:
                     # White mode
                     col_temp = payload[9]
                     color_temp_kelvin = self._min_color_temp_kelvin + col_temp * (self._max_color_temp_kelvin - self._min_color_temp_kelvin) / 100
                     self._color_mode = ColorMode.COLOR_TEMP
                     self._hs_color = None
-                    self._effect = EFFECT_OFF_HA
+                    self._effect = EFFECT_OFF
                     self._color_temp_kelvin = color_temp_kelvin
                     self._brightness = int(payload[5] * 255 // 100)
                 if selected_effect == 0x01:
@@ -324,7 +335,7 @@ class LEDNETWFInstance:
                     self._color_mode        = ColorMode.RGB
                     self._hs_color          = None
                     self._color_temp_kelvin = None
-                    self._effect            = EFFECT_OFF_HA
+                    self._effect            = EFFECT_OFF
                     rgb_in = tuple(payload[6:9])
                     brightness_percent = max(self.normalize_brightness(self._brightness),1)
                     self._rgb_color = tuple(max(0, min(255, int(component * 100 / brightness_percent))) for component in rgb_in)
@@ -332,10 +343,19 @@ class LEDNETWFInstance:
                     # "Static" effects from strip lights
                     self._color_mode = ColorMode.RGB
                     effect = selected_effect << 8 # Shift back to the numbers defined in the effect map in const
-                    effect_name = EFFECT_ID_TO_NAME_0x56[effect]
-                    self._effect = effect_name
+                    self._effect = EFFECT_ID_TO_NAME_0x56[effect]
                     self._effect_speed = payload[5]  
-                    
+            
+            if mode == 0x62:
+                # Music effects mode from strip lights
+                self._color_mode = ColorMode.BRIGHTNESS
+                effect = payload[4]
+                scaled_effect = (effect + 0x32) << 8
+                try:
+                    self._effect = EFFECT_ID_TO_NAME_0x56[scaled_effect]
+                except KeyError:
+                    self._effect = "Unknown"
+                
 
             if mode == 0x25:
                 self.log("N: Effects mode")
@@ -456,10 +476,7 @@ class LEDNETWFInstance:
         # Warm (0x0) is only the warm white LED, cool (0x64) is only the cool white LED and then a mixture between the two
         if value is None or new_brightness is None:
             return
-        if value < self._min_color_temp_kelvin:
-            value = self._min_color_temp_kelvin
-        if value > self._max_color_temp_kelvin:
-            value = self._max_color_temp_kelvin
+        value = max(self._min_color_temp_kelvin, min(value, self._max_color_temp_kelvin))
         self._color_temp_kelvin = value
         brightness_percent = self.normalize_brightness(new_brightness)
 
@@ -474,7 +491,7 @@ class LEDNETWFInstance:
         color_temp_kelvin_packet[14] = brightness_percent
         await self._write(color_temp_kelvin_packet)
         self._color_mode = ColorMode.COLOR_TEMP
-        self._effect = EFFECT_OFF_HA
+        self._effect = EFFECT_OFF
 
     @retry_bluetooth_connection_error
     async def set_hs_color(self, hs: Tuple[int, int], new_brightness: int):
@@ -492,7 +509,7 @@ class LEDNETWFInstance:
         self._hs_color = hs
         self._rgb_color = None
         self._color_temp_kelvin = None
-        self._effect = EFFECT_OFF_HA
+        self._effect = EFFECT_OFF
         hue = int(hs[0] / 2)
         saturation = int(hs[1])
         brightness_percent = self.normalize_brightness(new_brightness)
@@ -509,8 +526,10 @@ class LEDNETWFInstance:
         # This means we have to try and recover brightness from the RGB values sent back by the notification.  If the values drop below a certain threshold all colour information is
         # lost and we can't get it back (e.g. a colour of 1,1,1).  
         self.log("Set RGB: Setting RGB Color")
-        if rgb is None:
-            rgb = self._rgb_color
+        if rgb is None and self._rgb_color is None:
+            rgb = (255,0,0)
+        elif rgb is None and self._rgb_color is not None:
+            rgb = self._rgb_color 
         self._color_mode = ColorMode.RGB
         self._hs_color = None
         self._brightness = new_brightness
@@ -533,16 +552,21 @@ class LEDNETWFInstance:
     async def set_effect(self, effect: str, new_brightness: int):
         EFFECT_LIST = EFFECT_LIST_0x53 if self._model == RING_LIGHT_MODEL else EFFECT_LIST_0x56
         EFFECT_MAP  = EFFECT_MAP_0x53  if self._model == RING_LIGHT_MODEL else EFFECT_MAP_0x56
-        if effect not in EFFECT_LIST or effect is EFFECT_OFF_HA:
+        if effect not in EFFECT_LIST or effect is EFFECT_OFF:
             LOGGER.error(f"Effect {effect} not supported or effect off called")
             return
         
         self._effect       = effect
+        self.log(f"Setting effect: {effect}")
         brightness_percent = self.normalize_brightness(new_brightness)
         effect_id          = EFFECT_MAP.get(effect)
+        self.log(f"Effect ID: {effect_id}")
+        if self._rgb_color is None:
+            # We haven't set a colour yet, so set it to red
+            self._rgb_color = (255,0,0)
 
-        if 0xFF < effect_id < 0xFFFF: # See const for the meaning of these values 
-            # We are dealing with special effect numbers
+        if 0x0100 <= effect_id <= 0x1100: # See const for the meaning of these values.
+            # We are dealing with "static" special effect numbers
             self.log(f"'Static' effect: {effect_id}")
             effect_id = effect_id >> 8 # Shift back to the actual effect id
             self.log(f"Special effect after shifting: {effect_id}")
@@ -552,18 +576,24 @@ class LEDNETWFInstance:
             effect_packet[10:13] = rgb
             effect_packet[16] = self._effect_speed
             effect_packet[20] = sum(effect_packet[8:19]) & 0xFF # checksum
+            self.log(f"static effect packet : {' '.join([f'{byte:02X}' for byte in effect_packet])}")
             await self._write(effect_packet)
             return
         
-        if effect_id == 0xFFFF: # Music mode
+        if 0x2100 <= effect_id <= 0x4100: # Music mode.
+            # We are dealing with a music mode effect
             effect_packet = bytearray.fromhex("00 22 80 00 00 0d 0e 0b 73 00 26 01 ff 00 00 ff 00 00 20 1a d2")
-            effect_packet[9]  = 1 # On
-            effect_packet[11] = 1 # Music mode - need to enumerate these still. 1-10
+            self.log(f"Music effect: {effect_id}")
+            effect_id = (effect_id >> 8) - 0x32 # Shift back to the actual effect id
+            self.log(f"Music effect after shifting: {effect_id}")
+            effect_packet[9]     = 1 # On
+            effect_packet[11]    = effect_id
             effect_packet[12:15] = self._rgb_color
             effect_packet[15:18] = self._rgb_color # maybe background colour?
             effect_packet[18]    = self._effect_speed # Actually sensitivity, but would like to avoid another slider if possible
             effect_packet[19]    = brightness_percent
             effect_packet[20]    = sum(effect_packet[8:19]) & 0xFF
+            self.log(f"music effect packet : {' '.join([f'{byte:02X}' for byte in effect_packet])}")
             await self._write(effect_packet)
             return
         
@@ -580,7 +610,7 @@ class LEDNETWFInstance:
     async def set_effect_speed(self, speed):
         speed = max(0, min(100, speed)) # Should be zero for stationary effects?
         self._effect_speed = speed
-        if self._effect == EFFECT_OFF_HA:
+        if self._effect == EFFECT_OFF:
             return
         await self.set_effect(self._effect, self._brightness)
 
@@ -628,8 +658,8 @@ class LEDNETWFInstance:
             led_settings_packet[11], led_settings_packet[12] = [0,1] # We're only supporting a single segment
             led_settings_packet[13] = chip_type
             led_settings_packet[14] = color_order
-            led_settings_packet[15] = led_count & 0xFF # I think this is "music mode" which can have a different number of leds to "lightbar" mode. Not going to think about that yet.
-            led_settings_packet[16] = 1 # 1 music mode segment
+            led_settings_packet[15] = led_count & 0xFF
+            led_settings_packet[16] = 1 # 1 music mode segment, can support more in the app.
             led_settings_packet[17] = sum(led_settings_packet[9:18]) & 0xFF
         if self._model == RING_LIGHT_MODEL:
             led_settings_packet     = bytearray.fromhex("00 00 80 00 00 06 07 0a 62 00 0e 01 00 71")

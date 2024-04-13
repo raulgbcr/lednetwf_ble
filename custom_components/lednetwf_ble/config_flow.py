@@ -197,12 +197,10 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
         model   = self._options.get("model")
 
         if user_input is not None:
-            # new_led_count   = user_input.get(CONF_LEDCOUNT)
             new_led_type    = user_input.get(CONF_LEDTYPE)
             new_led_type    = LedTypes_StripLight[new_led_type].value if model == 0x56 else LedTypes_RingLight[new_led_type].value
             new_color_order = user_input.get(CONF_COLORORDER)
             new_color_order = ColorOrdering[new_color_order].value
-            # new_delay       = user_input.get(CONF_DELAY)
             self._options.update(user_input)
             return self.async_create_entry(title=self._config_entry.title, data=self._options)
         

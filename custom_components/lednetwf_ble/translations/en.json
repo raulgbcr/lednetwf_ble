@@ -6,7 +6,7 @@
                     "mac": "Bluetooth MAC address",
                     "name": "Name"
                 },
-                "title": "Pick a LEDnetWF light. Make sure light in sight for validation."
+                "title": "Pick a LEDnetWF light"
             },
             "validate": {
                 "data": {
@@ -53,6 +53,13 @@
                     "colororder": "Color order"                    
                 },
                 "title": "LEDnetWF"
+            }
+        }
+    },
+    "entity": {
+        "number" : {
+            "effect_speed": {
+                "name": "Effect speed"
             }
         }
     }

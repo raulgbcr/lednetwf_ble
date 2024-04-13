@@ -11,10 +11,7 @@ from homeassistant.helpers.entity import DeviceInfo
 from homeassistant.components.light import (
     PLATFORM_SCHEMA,
     ATTR_BRIGHTNESS,
-    # ATTR_BRIGHTNESS_STEP_PCT,
     ATTR_COLOR_TEMP_KELVIN,
-    # ATTR_MIN_COLOR_TEMP_KELVIN,
-    # ATTR_MAX_COLOR_TEMP_KELVIN,
     ATTR_EFFECT,
     EFFECT_OFF,
     ATTR_HS_COLOR,
@@ -53,11 +50,8 @@ class LEDNETWFLight(LightEntity):
         else:
             self._attr_supported_color_modes = {ColorMode.BRIGHTNESS, ColorMode.RGB}
         self._attr_supported_features = LightEntityFeature.EFFECT
-        #self._attr_brightness_step_pct = 10
-        #self._attr_has_entity_name = False
-        self._attr_name = name
-
-        self._attr_unique_id = self._instance.mac
+        self._attr_name               = name
+        self._attr_unique_id          = self._instance.mac
         self._instance.local_callback = self.light_local_callback
         
     @property
@@ -69,7 +63,6 @@ class LEDNETWFLight(LightEntity):
         return self._instance.brightness
     @property
     def brightness_step_pct(self):
-        #return self._attr_brightness_step_pct
         return 10
     
     @property
