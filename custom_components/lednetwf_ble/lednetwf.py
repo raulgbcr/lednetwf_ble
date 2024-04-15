@@ -161,6 +161,8 @@ class LEDNETWFInstance:
         self._brightness            = 255
         self._effect                = EFFECT_OFF # 2024.2 this indicates HA that we support effects and they are currently off
         self._effect_speed          = 0x64 # 0-100% speed
+        self._min_color_temp_kelvin = 2700
+        self._max_color_temp_kelvin = 6500
         self._model                 = self._detect_model(service_info['manufacturer_data'])
         self._color_mode            = ColorMode.HS if self._model == RING_LIGHT_MODEL else ColorMode.RGB
         self._write_uuid            = None
@@ -169,8 +171,6 @@ class LEDNETWFInstance:
         self._color_order           = options.get(CONF_COLORORDER, None)
         self._chip_type             = options.get(CONF_LEDTYPE, None)
         self._color_temp_kelvin     = None
-        self._min_color_temp_kelvin = 2700
-        self._max_color_temp_kelvin = 6500
         self._on_update_callbacks = []
         LOGGER.debug(
             "Model information for device %s : ModelNo %s. MAC: %s",
