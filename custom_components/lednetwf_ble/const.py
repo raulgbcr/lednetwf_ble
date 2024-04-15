@@ -299,7 +299,7 @@ class LedTypes_StripLight(Enum):
         raise ValueError(f"No member with value {value}")
 
 class LedTypes_RingLight(Enum):
-    # Unknown    = 0x00
+    Unknown    = 0x00
     WS2812B    = 0x01
     SM16703    = 0x02
     WS2811     = 0x03
