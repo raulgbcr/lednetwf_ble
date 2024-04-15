@@ -124,12 +124,13 @@ class LEDNETWFFlowHandler(config_entries.ConfigFlow, domain=DOMAIN):
     async def async_step_validate(self, user_input: "dict[str, Any] | None" = None):
         if user_input is not None:
             LOGGER.debug(f"async step validate with User input: {user_input}")
-            led_count   = self._instance._led_count
-            led_type    = self._instance._chip_type.name
-            color_order = self._instance._color_order.name
-            model_num   = self._instance._model
+            led_count   = getattr(self._instance, '_led_count', 64) #May be Unsafe, leave blank ?
+            led_type    = getattr(self._instance._chip_type, 'name', "Unknown")
+            color_order = getattr(self._instance._color_order, 'name ', "RGB")
+            model_num   = getattr(self._instance, '_model', 0x53) #May be unsafe, leave blank ?
             data        = {CONF_MAC: self.mac, CONF_NAME: self.name, CONF_DELAY: 120}
             options     = {CONF_LEDCOUNT: led_count, CONF_LEDTYPE: led_type, CONF_COLORORDER: color_order, CONF_MODEL: model_num}
+
             # TODO: deal with "none" better from old devices which haven't got config data yet. Also update the function in const to not error on none.
 
             if "flicker" in user_input:

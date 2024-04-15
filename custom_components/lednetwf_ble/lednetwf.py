@@ -149,6 +149,7 @@ class LEDNETWFInstance:
         service_info  = bluetooth.async_last_service_info(self._hass, self._mac).as_dict()
         LOGGER.debug(f"Service info: {service_info}")
         LOGGER.debug(f"Service info keys: {service_info.keys()}")
+
         self._connect_lock: asyncio.Lock = asyncio.Lock()
         self._client: BleakClientWithServiceCache | None = None
         self._disconnect_timer: asyncio.TimerHandle | None = None
@@ -164,7 +165,7 @@ class LEDNETWFInstance:
         self._min_color_temp_kelvin = 2700
         self._max_color_temp_kelvin = 6500
         self._model                 = self._detect_model(service_info['manufacturer_data'])
-        self._color_mode            = ColorMode.HS if self._model == RING_LIGHT_MODEL else ColorMode.RGB
+        self._color_mode            = ColorMode.HS if self._model == RING_LIGHT_MODEL else ColorMode.RGB #COlorMode.RGB IS GETTING DEPRECATED, CHANGE !!!!!!!!!!
         self._write_uuid            = None
         self._read_uuid             = None
         self._led_count             = options.get(CONF_LEDCOUNT, None)
@@ -172,6 +173,7 @@ class LEDNETWFInstance:
         self._chip_type             = options.get(CONF_LEDTYPE, None)
         self._color_temp_kelvin     = None
         self._on_update_callbacks = []
+
         LOGGER.debug(
             "Model information for device %s : ModelNo %s. MAC: %s",
             self._device.name,
@@ -192,7 +194,9 @@ class LEDNETWFInstance:
         formatted = [f'0x{byte:02X}' for byte in manu_data_data]
         formatted_str = ' '.join(formatted)
         self.log(f"DM:\t\t Manu data:         {formatted_str}")
-        self._color_mode = ColorMode.BRIGHTNESS
+
+        self._color_mode = ColorMode.BRIGHTNESS  ## ColorMode.Brigtness is getting deprecated, change !!!!!!!!!!!
+
         self._fw_major   = manu_data_data[0]
         self._fw_minor   = f'{manu_data_data[8]:02X}{manu_data_data[9]:02X}.{manu_data_data[10]:02X}'
         self._led_count  = manu_data_data[24]
@@ -201,7 +205,10 @@ class LEDNETWFInstance:
         if manu_data_data[15] == 0x61:
             # Colour mode (RGB & Whites) and "Static" effects
             if manu_data_data[16] == 0xf0:
-                # RGB Mode
+                # RGB Mode 
+
+                ### ColorMode.RGB is getting deprecated, change !!!!!!!!!!!!
+
                 r,g,b = manu_data_data[18], manu_data_data[19], manu_data_data[20]
                 if self._fw_major == RING_LIGHT_MODEL:
                     self._rgb_color = (r,g,b)
