@@ -274,7 +274,7 @@ class LEDNETWFInstance:
         await self._ensure_connected()
         if self._packet_counter > 65535:
             self._packet_counter = 0
-        data[0] = 0xFF00 & self._packet_counter
+        data[0] = (0xFF00 & self._packet_counter) >> 8
         data[1] = 0x00FF & self._packet_counter
         self._packet_counter += 1
         await self._write_while_connected(data)
