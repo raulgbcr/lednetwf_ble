@@ -426,6 +426,10 @@ class LEDNETWFInstance:
     def mac(self):
         return self._device.address
 
+    # @property
+    # def reset(self):
+    #     return self._reset
+
     @property
     def name(self):
         return self._device.name

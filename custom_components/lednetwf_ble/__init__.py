@@ -5,7 +5,6 @@ from homeassistant.core import HomeAssistant, Event
 from homeassistant.const import CONF_MAC, EVENT_HOMEASSISTANT_STOP
 from homeassistant.const import Platform
 
-
 from .const import DOMAIN, CONF_RESET, CONF_DELAY, CONF_LEDCOUNT, CONF_LEDTYPE, CONF_COLORORDER
 from .lednetwf import LEDNETWFInstance
 import logging
@@ -21,6 +20,10 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     config     = entry.data
     options    = entry.options
     instance   = LEDNETWFInstance(entry.data[CONF_MAC], hass, config, options)
+    # reset = entry.options.get(CONF_RESET, None) or entry.data.get(CONF_RESET, None)
+    delay = entry.options.get(CONF_DELAY, None) or entry.data.get(CONF_DELAY, None)
+    # LOGGER.debug("Config Reset data: %s and config delay data: %s", reset, delay)
+
     hass.data.setdefault(DOMAIN, {})
     hass.data[DOMAIN][entry.entry_id] = instance
 
