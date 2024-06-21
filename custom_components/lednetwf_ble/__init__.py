@@ -3,22 +3,27 @@ from __future__ import annotations
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant, Event
 from homeassistant.const import CONF_MAC, EVENT_HOMEASSISTANT_STOP
+from homeassistant.const import Platform
 
-from .const import DOMAIN, CONF_DELAY
+from .const import DOMAIN, CONF_RESET, CONF_DELAY, CONF_LEDCOUNT, CONF_LEDTYPE, CONF_COLORORDER
 from .lednetwf import LEDNETWFInstance
 import logging
 
 LOGGER = logging.getLogger(__name__)
-PLATFORMS = ["light"]
+PLATFORMS: list[Platform] = [
+    Platform.LIGHT,
+    Platform.NUMBER
+]
 
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     """Set up from a config entry."""
+    config     = entry.data
+    options    = entry.options
+    instance   = LEDNETWFInstance(entry.data[CONF_MAC], hass, config, options)
     # reset = entry.options.get(CONF_RESET, None) or entry.data.get(CONF_RESET, None)
     delay = entry.options.get(CONF_DELAY, None) or entry.data.get(CONF_DELAY, None)
     # LOGGER.debug("Config Reset data: %s and config delay data: %s", reset, delay)
 
-    instance = LEDNETWFInstance(entry.data[CONF_MAC], delay, hass)
-    #hass.data.setdefault(DOMAIN, {})[entry.entry_id] = instance
     hass.data.setdefault(DOMAIN, {})
     hass.data[DOMAIN][entry.entry_id] = instance
 
@@ -46,5 +51,5 @@ async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 async def _async_update_listener(hass: HomeAssistant, entry: ConfigEntry) -> None:
     """Handle options update."""
     instance = hass.data[DOMAIN][entry.entry_id]
-    if entry.title != instance.name:
-        await hass.config_entries.async_reload(entry.entry_id)
+    await instance.set_led_settings(entry.options)
+    await hass.config_entries.async_reload(entry.entry_id)

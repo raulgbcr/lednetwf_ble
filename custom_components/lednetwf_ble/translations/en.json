@@ -6,7 +6,7 @@
                     "mac": "Bluetooth MAC address",
                     "name": "Name"
                 },
-                "title": "Pick a LEDnetWF light. Make sure light in sight for validation."
+                "title": "Pick a LEDnetWF light"
             },
             "validate": {
                 "data": {
@@ -35,10 +35,32 @@
         "step": {
             "user": {
                 "data": {
-                    "delay": "Disconnect delay (0 equal never disconnect)"
+                    "reset": "Reset color when led turn on",
+                    "delay": "Disconnect delay (0 = never disconnect)",
+                    "ledcount": "Number of LEDs",
+                    "name": "Name",
+                    "ledtype": "LED type",
+                    "colororder": "Color order"
                 }
+            },
+            "init" : {
+                "data": {
+                    "reset": "Reset color when led turn on",
+                    "delay": "Disconnect delay (0 equal never disconnect)",
+                    "ledcount": "Number of LEDs",
+                    "name": "Name",
+                    "ledtype": "LED type",
+                    "colororder": "Color order"                    
+                },
+                "title": "LEDnetWF"
             }
         }
     },
-    "title": "LEDnetWF"
+    "entity": {
+        "number" : {
+            "effect_speed": {
+                "name": "Effect speed"
+            }
+        }
+    }
 }
