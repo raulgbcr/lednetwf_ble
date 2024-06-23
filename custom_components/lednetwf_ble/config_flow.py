@@ -32,9 +32,6 @@ from .const import (
     ColorOrdering
 )
 
-import logging
-
-
 LOGGER = logging.getLogger(__name__)
 
 class DeviceData(BluetoothData):
@@ -163,7 +160,6 @@ class LEDNETWFFlowHandler(config_entries.ConfigFlow, domain=DOMAIN):
     async def toggle_light(self):
         if not self._instance:
             self._instance = LEDNETWFInstance(self.mac, self.hass)
-
         try:
             await self._instance.update()
             await self._instance.send_initial_packets()
@@ -200,9 +196,6 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
         """Handle a flow initialized by the user."""
         errors = {}
         model   = self._options.get("model")
-        options = self.config_entry.options or {CONF_DELAY: 120}
-        if user_input is not None:
-            return self.async_create_entry(title="", data={CONF_DELAY: user_input[CONF_DELAY]})
 
         if user_input is not None:
             new_led_type    = user_input.get(CONF_LEDTYPE)
@@ -234,3 +227,4 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
     async def _update_options(self):
         """Update config entry options."""
         return self.async_create_entry(self._config_entry)
+    
