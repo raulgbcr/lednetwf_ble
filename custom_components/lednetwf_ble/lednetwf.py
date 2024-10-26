@@ -506,59 +506,57 @@ class LEDNETWFInstance:
 
     @retry_bluetooth_connection_error
     async def set_hs_color(self, hs: Tuple[int, int], new_brightness: int):
-        pass
-        # # The device expects basic static colour information in HSV format.
-        # # The value for the Hue element is divided by two to fit in to a single byte.
-        # # Saturation and Value are percentages from 0 to 100 (0x64).
-        # # Value = Brightness
-        # if hs is None:
-        #     self.log("HS is None")
-        #     return
-        # else:
-        #     self.log(f"HS is {hs}")
+        # The device expects basic static colour information in HSV format.
+        # The value for the Hue element is divided by two to fit in to a single byte.
+        # Saturation and Value are percentages from 0 to 100 (0x64).
+        # Value = Brightness
+        if hs is None:
+            self.log("HS is None")
+            return
+        else:
+            self.log(f"HS is {hs}")
 
-        # self._color_mode = ColorMode.HS
-        # self._hs_color = hs
-        # self._rgb_color = None
-        # self._color_temp_kelvin = None
-        # self._effect = EFFECT_OFF
-        # hue = int(hs[0] / 2)
-        # saturation = int(hs[1])
-        # brightness_percent = self.normalize_brightness(new_brightness)
-        # color_hs_packet = bytearray.fromhex("00 00 80 00 00 0d 0e 0b 3b a1 00 64 64 00 00 00 00 00 00 00 00")
-        # color_hs_packet[10] = hue
-        # color_hs_packet[11] = saturation
-        # color_hs_packet[12] = brightness_percent
-        # await self._write(color_hs_packet)
+        self._color_mode = ColorMode.HS
+        self._hs_color = hs
+        self._rgb_color = None
+        self._color_temp_kelvin = None
+        self._effect = EFFECT_OFF
+        hue = int(hs[0] / 2)
+        saturation = int(hs[1])
+        brightness_percent = self.normalize_brightness(new_brightness)
+        color_hs_packet = bytearray.fromhex("00 00 80 00 00 0d 0e 0b 3b a1 00 64 64 00 00 00 00 00 00 00 00")
+        color_hs_packet[10] = hue
+        color_hs_packet[11] = saturation
+        color_hs_packet[12] = brightness_percent
+        await self._write(color_hs_packet)
 
     @retry_bluetooth_connection_error
     async def set_rgb_color(self, rgb: Tuple[int, int, int], new_brightness: int):
-        pass
-        # # The strip light devices on firmware 0x56 support RGB colours via a different command
-        # # RGB colour handling is difficult on these devices because they don't implement a separate brightness control.  Instead, the RGB values are scaled by the brightness percentage.
-        # # This means we have to try and recover brightness from the RGB values sent back by the notification.  If the values drop below a certain threshold all colour information is
-        # # lost and we can't get it back (e.g. a colour of 1,1,1).  
-        # self.log("Set RGB: Setting RGB Color")
-        # if rgb is None and self._rgb_color is None:
-        #     rgb = (255,0,0)
-        # elif rgb is None and self._rgb_color is not None:
-        #     rgb = self._rgb_color 
+        # The strip light devices on firmware 0x56 support RGB colours via a different command
+        # RGB colour handling is difficult on these devices because they don't implement a separate brightness control.  Instead, the RGB values are scaled by the brightness percentage.
+        # This means we have to try and recover brightness from the RGB values sent back by the notification.  If the values drop below a certain threshold all colour information is
+        # lost and we can't get it back (e.g. a colour of 1,1,1).  
+        self.log("Set RGB: Setting RGB Color")
+        if rgb is None and self._rgb_color is None:
+            rgb = (255,0,0)
+        elif rgb is None and self._rgb_color is not None:
+            rgb = self._rgb_color 
             
-        # hsv = rgb_to_hsv(rgb[0], rgb[1], rgb[2])
+        hsv = rgb_to_hsv(rgb[0], rgb[1], rgb[2])
             
-        # self._color_mode = ColorMode.HS
-        # self._hs_color = hsv[0:2]
-        # self._rgb_color = None
-        # self._color_temp_kelvin = None
-        # self._effect = EFFECT_OFF
-        # hue = int(hsv[0] / 2)
-        # saturation = int(hsv[1])
-        # brightness_percent = self.normalize_brightness(new_brightness)
-        # color_hs_packet = bytearray.fromhex("00 00 80 00 00 0d 0e 0b 3b a1 00 64 64 00 00 00 00 00 00 00 00")
-        # color_hs_packet[10] = hue
-        # color_hs_packet[11] = saturation
-        # color_hs_packet[12] = brightness_percent
-        # await self._write(color_hs_packet)
+        self._color_mode = ColorMode.HS
+        self._hs_color = hsv[0:2]
+        self._rgb_color = None
+        self._color_temp_kelvin = None
+        self._effect = EFFECT_OFF
+        hue = int(hsv[0] / 2)
+        saturation = int(hsv[1])
+        brightness_percent = self.normalize_brightness(new_brightness)
+        color_hs_packet = bytearray.fromhex("00 00 80 00 00 0d 0e 0b 3b a1 00 64 64 00 00 00 00 00 00 00 00")
+        color_hs_packet[10] = hue
+        color_hs_packet[11] = saturation
+        color_hs_packet[12] = brightness_percent
+        await self._write(color_hs_packet)
         
     @retry_bluetooth_connection_error
     async def set_effect(self, effect: str, new_brightness: int):
