@@ -187,13 +187,11 @@ class LEDNETWFLight(LightEntity):
             # self._instance._effect = EFFECT_OFF
             await self._instance.set_color_temp_kelvin(kwargs[ATTR_COLOR_TEMP_KELVIN], on_brightness)
         elif ATTR_HS_COLOR in kwargs:
-            pass
-            #await self._instance.set_hs_color(kwargs[ATTR_HS_COLOR], on_brightness)
+            await self._instance.set_hs_color(kwargs[ATTR_HS_COLOR], on_brightness)
         elif ATTR_RGB_COLOR in kwargs:
-            pass
-            # rgb = kwargs[ATTR_RGB_COLOR]
-            # hsv = rgb_to_hsv(rgb[0], rgb[1], rgb[2])
-            # await self._instance.set_hs_color(hsv[0:2], on_brightness)
+            rgb = kwargs[ATTR_RGB_COLOR]
+            hsv = rgb_to_hsv(rgb[0], rgb[1], rgb[2])
+            await self._instance.set_hs_color(hsv[0:2], on_brightness)
         elif ATTR_EFFECT in kwargs and kwargs[ATTR_EFFECT] != EFFECT_OFF:
             await self._instance.set_effect(kwargs[ATTR_EFFECT], on_brightness)
         self.async_write_ha_state()
