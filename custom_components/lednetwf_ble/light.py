@@ -2,7 +2,7 @@ import logging
 import voluptuous as vol
 from typing import Any, Optional, Tuple
 
-from .lednetwf import LEDNETWFInstance
+from .lednetwf import LEDNETWFInstance, rgb_to_hsv
 from .const import (DOMAIN, RING_LIGHT_MODEL, STRIP_LIGHT_MODEL)
 
 from homeassistant.const import CONF_MAC
@@ -189,7 +189,9 @@ class LEDNETWFLight(LightEntity):
         elif ATTR_HS_COLOR in kwargs:
             await self._instance.set_hs_color(kwargs[ATTR_HS_COLOR], on_brightness)
         elif ATTR_RGB_COLOR in kwargs:
-            await self._instance.set_rgb_color(kwargs[ATTR_RGB_COLOR], on_brightness)
+            rgb = kwargs[ATTR_RGB_COLOR]
+            hsv = rgb_to_hsv(rgb[0], rgb[1], rgb[2])
+            await self._instance.set_hs_color(hsv[0:2], on_brightness)
         elif ATTR_EFFECT in kwargs and kwargs[ATTR_EFFECT] != EFFECT_OFF:
             await self._instance.set_effect(kwargs[ATTR_EFFECT], on_brightness)
         self.async_write_ha_state()

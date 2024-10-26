@@ -541,23 +541,22 @@ class LEDNETWFInstance:
             rgb = (255,0,0)
         elif rgb is None and self._rgb_color is not None:
             rgb = self._rgb_color 
-        self._color_mode = ColorMode.RGB
-        self._hs_color = None
-        self._brightness = new_brightness
+            
+        hsv = rgb_to_hsv(rgb[0], rgb[1], rgb[2])
+            
+        self._color_mode = ColorMode.HS
+        self._hs_color = hsv[0:2]
+        self._rgb_color = None
+        self._color_temp_kelvin = None
+        self._effect = EFFECT_OFF
+        hue = int(hsv[0] / 2)
+        saturation = int(hsv[1])
         brightness_percent = self.normalize_brightness(new_brightness)
-        rgb = tuple(max(0, min(255, int(component * brightness_percent / 100))) for component in rgb)
-        background_col = [0,0,0] # Consider adding support for this in the future?  For now, set black
-        rgb_packet = bytearray.fromhex("00 00 80 00 00 0d 0e 0b 41 02 ff 00 00 00 00 00 32 00 00 f0 64")
-        rgb_packet[9]  = 0 # Mode "0" leaves the static current mode unchanged.  If we want this to switch the device back to an actual static RGB mode change this to 1.
-        # Leaving it as zero allows people to use the colour picker to change the colour of the static mode in realtime.  I'm not sure what I prefer.  If people want actual
-        # static colours they can change to "Static Mode 1" in the effects.  But perhaps that's not what they would expect to have to do?  It's quite hidden.
-        # But they pay off is that they can change the colour of the other static modes as they drag the colour picker around, which is pretty neat. ?
-        rgb_packet[10:13] = rgb
-        rgb_packet[13:16] = background_col
-        rgb_packet[16]    = self._effect_speed
-        rgb_packet[20]    = sum(rgb_packet[8:19]) & 0xFF # Checksum
-        self.log(f"Set RGB. RGB {self._rgb_color} Brightness {self._brightness}")
-        await self._write(rgb_packet)
+        color_hs_packet = bytearray.fromhex("00 00 80 00 00 0d 0e 0b 3b a1 00 64 64 00 00 00 00 00 00 00 00")
+        color_hs_packet[10] = hue
+        color_hs_packet[11] = saturation
+        color_hs_packet[12] = brightness_percent
+        await self._write(color_hs_packet)
         
     @retry_bluetooth_connection_error
     async def set_effect(self, effect: str, new_brightness: int):
