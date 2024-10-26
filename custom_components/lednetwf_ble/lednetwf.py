@@ -534,7 +534,6 @@ class LEDNETWFInstance:
 
     @retry_bluetooth_connection_error
     async def set_rgb_color(self, rgb: Tuple[int, int, int], new_brightness: int):
-        # FIXME:
         # The strip light devices on firmware 0x56 support RGB colours via a different command
         # RGB colour handling is difficult on these devices because they don't implement a separate brightness control.  Instead, the RGB values are scaled by the brightness percentage.
         # This means we have to try and recover brightness from the RGB values sent back by the notification.  If the values drop below a certain threshold all colour information is
