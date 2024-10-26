@@ -5,6 +5,7 @@ from homeassistant.exceptions import ConfigEntryNotReady
 from homeassistant.components.light import (ColorMode)
 from homeassistant.const import CONF_MAC
 from homeassistant.components.light import EFFECT_OFF
+import homeassistant
 
 from bleak.backends.device import BLEDevice
 from bleak.backends.service import BleakGATTCharacteristic, BleakGATTServiceCollection
@@ -528,10 +529,12 @@ class LEDNETWFInstance:
         color_hs_packet[10] = hue
         color_hs_packet[11] = saturation
         color_hs_packet[12] = brightness_percent
+        LOGGER.info("SET HSV")
         await self._write(color_hs_packet)
 
     @retry_bluetooth_connection_error
     async def set_rgb_color(self, rgb: Tuple[int, int, int], new_brightness: int):
+        # FIXME:
         # The strip light devices on firmware 0x56 support RGB colours via a different command
         # RGB colour handling is difficult on these devices because they don't implement a separate brightness control.  Instead, the RGB values are scaled by the brightness percentage.
         # This means we have to try and recover brightness from the RGB values sent back by the notification.  If the values drop below a certain threshold all colour information is
@@ -556,6 +559,7 @@ class LEDNETWFInstance:
         color_hs_packet[10] = hue
         color_hs_packet[11] = saturation
         color_hs_packet[12] = brightness_percent
+        LOGGER.info("SET RGB")
         await self._write(color_hs_packet)
         
     @retry_bluetooth_connection_error
