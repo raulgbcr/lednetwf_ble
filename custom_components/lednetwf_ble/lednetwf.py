@@ -165,7 +165,7 @@ class LEDNETWFInstance:
         self._min_color_temp_kelvin = 2700
         self._max_color_temp_kelvin = 6500
         self._model                 = self._detect_model(service_info['manufacturer_data'])
-        self._color_mode            = ColorMode.HS if self._model == RING_LIGHT_MODEL else ColorMode.RGB #COlorMode.RGB IS GETTING DEPRECATED, CHANGE !!!!!!!!!!
+        self._color_mode            = ColorMode.HS if self._model == RING_LIGHT_MODEL else ColorMode.RGB
         self._write_uuid            = None
         self._read_uuid             = None
         self._led_count             = options.get(CONF_LEDCOUNT, None)
@@ -195,7 +195,8 @@ class LEDNETWFInstance:
         formatted_str = ' '.join(formatted)
         self.log(f"DM:\t\t Manu data:         {formatted_str}")
 
-        self._color_mode = ColorMode.BRIGHTNESS  ## ColorMode.Brigtness is getting deprecated, change !!!!!!!!!!!
+        self._color_mode = ColorMode.UNKNOWN
+        # 2025.3 Setting color mode as UNKNOWN will avoid throwing error on unsupported color mode
 
         self._fw_major   = manu_data_data[0]
         self._fw_minor   = f'{manu_data_data[8]:02X}{manu_data_data[9]:02X}.{manu_data_data[10]:02X}'
@@ -206,9 +207,6 @@ class LEDNETWFInstance:
             # Colour mode (RGB & Whites) and "Static" effects
             if manu_data_data[16] == 0xf0:
                 # RGB Mode 
-
-                ### ColorMode.RGB is getting deprecated, change !!!!!!!!!!!!
-
                 r,g,b = manu_data_data[18], manu_data_data[19], manu_data_data[20]
                 if self._fw_major == RING_LIGHT_MODEL:
                     self._rgb_color = (r,g,b)
